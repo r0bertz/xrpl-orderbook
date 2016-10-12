@@ -1,3 +1,5 @@
+/* globals require, console */
+
 'use strict';
 
 var gulp = require('gulp'),
@@ -11,8 +13,8 @@ var gulp = require('gulp'),
   NwBuilder = require('nw-builder'),
   runSequence = require('run-sequence'),
 
-  meta = require('./package.json');
-  //languages = require('./l10n/languages.json').active;
+  meta = require('./package.json'),
+  languages = require('./l10n/languages.json').active;
 
 var $ = require('gulp-load-plugins')({
   pattern: ['gulp-*', 'del', 'browser-sync']
@@ -246,35 +248,35 @@ gulp.task('templates:dev', function () {
     .pipe(gulp.dest(TMP_DIR + 'templates/en'))
 });
 
-//var languageTasks = [];
+var languageTasks = [];
 
-//languages.forEach(function(language){
-//  gulp.task('templates:' + language.code, function(){
-//    return gulp.src('src/templates/**/*.jade')
-//      .pipe($.jade({
-//        jade: jadeL10n,
-//        languageFile: 'l10n/' + language.code + '/messages.po',
-//        pretty: true
-//      }))
-//      .pipe(gulp.dest(BUILD_DIR + 'templates/' + language.code));
-//  });
+languages.forEach(function(language){
+ gulp.task('templates:' + language.code, function(){
+   return gulp.src('src/templates/**/*.jade')
+     .pipe($.jade({
+       jade: jadeL10n,
+       languageFile: 'l10n/' + language.code + '/messages.po',
+       pretty: true
+     }))
+     .pipe(gulp.dest(BUILD_DIR + 'templates/' + language.code));
+ });
 
-  //languageTasks.push('templates:' + language.code);
-//});
-
-//gulp.task('templates:dist', function(){
-//  runSequence(languageTasks)
-//});
-
-gulp.task('templates:dist', function() {
-  return gulp.src('src/templates/**/*.jade')
-    .pipe($.jade({
-      jade: jadeL10n,
-      languageFile: 'l10n/en/messages.po',
-      pretty: true
-    }))
-    .pipe(gulp.dest(BUILD_DIR + 'templates/en'));
+  languageTasks.push('templates:' + language.code);
 });
+
+gulp.task('templates:dist', function(){
+ runSequence(languageTasks)
+});
+
+// gulp.task('templates:dist', function() {
+//   return gulp.src('src/templates/**/*.jade')
+//     .pipe($.jade({
+//       jade: jadeL10n,
+//       languageFile: 'l10n/en/messages.po',
+//       pretty: true
+//     }))
+//     .pipe(gulp.dest(BUILD_DIR + 'templates/en'));
+// });
 
 // Default Task (Dev environment)
 gulp.task('default', function() {
@@ -347,7 +349,7 @@ gulp.task('build', function() {
     appName: meta.name + '-' + meta.version,
     appVersion: meta.version,
     buildDir: PACKAGES_FOLDER,
-    macZip: true,
+    zip: true,
     cacheDir: TMP_DIR,
     version: '0.12.3',
     // TODO: timestamped versions

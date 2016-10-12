@@ -108,7 +108,7 @@ section.col-xs-12.content(ng-controller="TradeCtrl")
 
     .message-select-issuer(ng-hide="order.valid_settings", l10n)
       | You must select a gateway to trade currencies.
-      |  Click the “Change gateway” link above and enter the 
+      |  Click the “Change gateway” link above and enter the
       |  gateway's address.&#32;
 
     group(ng-if="order.valid_settings")
@@ -138,6 +138,9 @@ section.col-xs-12.content(ng-controller="TradeCtrl")
       //- Show message if account has not been funded yet.
       .unfunded(ng-hide="account.Balance")
         p.literal(l10n) You have to be funded before you can trade
+
+      .trade-embeded-chart(
+        ng-bind-html="tradeEmbeddedHTML")
 
       //- 1. Order widgets
       group.row.send-widgets(ng-show="account.Balance && !readOnly")
@@ -438,10 +441,10 @@ section.col-xs-12.content(ng-controller="TradeCtrl")
           .emptyMessage(ng-show="isEmpty(offers)")
             p.literal(l10n="You haven't placed any orders.") You haven&#39;t placed any orders.
       .alert.alert-danger(ng-show="cancelError")
-        span(l10n) Unable to cancel order.    
-        span(l10n)  Error: {{cancelError}}  
+        span(l10n) Unable to cancel order.
+        span(l10n)  Error: {{cancelError}}
         a.dismiss(href="", ng-click="dismissCancelError()", l10n)  hide
-        
+
       h3(ng-hide="readOnly")
         span(l10n) Orderbook
         small.toggle(ng-click="hideOrderBook = !hideOrderBook")

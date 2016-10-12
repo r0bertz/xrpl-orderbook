@@ -454,6 +454,7 @@ HistoryTab.prototype.angular = function (module) {
             $scope.historyState = (history.length === newHistory.length) ? 'full' : 'ready';
             history = newHistory;
             updateHistory();
+
           }
         });
       }).request();

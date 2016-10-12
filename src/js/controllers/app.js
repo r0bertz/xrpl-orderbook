@@ -319,8 +319,7 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
     $scope.loadState['account'] = true;
   }
 
-  function handleAccountTx(data)
-  {
+  function handleAccountTx(data){
     $scope.$apply(function () {
       $scope.tx_marker = data.marker;
 
