@@ -353,8 +353,8 @@ gulp.task('build', function() {
     cacheDir: TMP_DIR,
     version: '0.12.3',
     // TODO: timestamped versions
-    macIcns: './res/dmg/xrp_ripple_logo.icns'
-    // TODO: winIco
+    macIcns: './res/dmg/xrp_ripple_logo.icns',
+    winIco: './res/dmg/xrp_ripple_logo.ico'
   });
 
   return nw.build()
