@@ -385,7 +385,7 @@ var JsonRewriter = module.exports = {
             }
 
             // Updated the regular key
-            if (transaction.type == 'setregularkey') {
+            if (obj.transaction && obj.transaction.type == 'setregularkey') {
               // Added a regular key
               if (!node.fieldsPrev.RegularKey && node.fieldsFinal.RegularKey) {
                 effect.type = 'regular_key_added';
