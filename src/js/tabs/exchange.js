@@ -2,7 +2,6 @@ var util = require('util'),
     webutil = require('../util/web'),
     Tab = require('../client/tab').Tab,
     Amount = ripple.Amount,
-    Base = ripple.Base,
     Currency = ripple.Currency;
 
 var ExchangeTab = function ()
@@ -98,7 +97,7 @@ ExchangeTab.prototype.angular = function (module)
       var pathUpdateTimeout;
       $scope.update_exchange = function () {
         var exchange = $scope.exchange;
-        var currency = ripple.Currency.from_human(exchange.currency_name);
+        var currency = Currency.from_human(exchange.currency_name);
 
         $scope.reset_paths();
 
@@ -199,7 +198,9 @@ ExchangeTab.prototype.angular = function (module)
 
                   // Scale amount by 1.01 to get a send max
                   // 1% greater than sending amount
-                  var scaleAmount = alt.amount.to_json();
+                  // var scaleAmount = alt.amount.to_json();
+                  var scaleAmount = { issuer: alt.amount._issuer };
+
                   scaleAmount.value = 1.01;
                   alt.send_max = alt.amount.scale(scaleAmount);
                   alt.paths = raw.paths_computed
@@ -231,7 +232,7 @@ ExchangeTab.prototype.angular = function (module)
 
         // create a currency object for each of the currency codes
         for (var i=0; i < currencies.length; i++) {
-          currencies[i] = ripple.Currency.from_json(currencies[i]);
+          currencies[i] = Currency.from_json(currencies[i]);
         }
 
         // create the display version of the currencies

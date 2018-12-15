@@ -2,10 +2,9 @@ var util = require('util');
 var webutil = require('../util/web');
 var settings = require('../util/settings');
 var Tab = require('../client/tab').Tab;
-var Amount = ripple.Amount;
 var rewriter = require('../util/jsonrewriter');
-var Currency = ripple.Currency;
 var gateways = require('../../../deps/gateways.json');
+var ripple = require('ripple-lib');
 
 var TradeTab = function ()
 {
@@ -32,10 +31,12 @@ TradeTab.prototype.angular = function(module)
 {
   module.controller('TradeCtrl', ['rpBooks', '$scope', 'rpId', 'rpNetwork',
                                   '$routeParams', '$location', '$filter',
-                                  'rpKeychain', '$rootScope',
+                                  'rpKeychain', '$rootScope', 'pairsQueryUtils',
+                                  '$timeout', '$document', '$sce',
                                   function (books, $scope, id, $network,
                                             $routeParams, $location, $filter,
-                                            keychain, $rootScope)
+                                            keychain, $rootScope, pairsQueryUtils,
+                                            $timeout, $document, $sce)
   {
     if (!id.loginStatus) id.goId();
 
@@ -50,6 +51,8 @@ TradeTab.prototype.angular = function(module)
     $scope.second_currency_selected = '';
     $scope.currencies_all = require('../data/currencies');
     $scope.currencies = [];
+
+    $scope.tradeEmbeddedHTML = '';
 
     var widget = {
       first: '',
@@ -72,6 +75,7 @@ TradeTab.prototype.angular = function(module)
 
     function onBlobIsValid() {
       $scope.pairs_query = settings.getSetting($scope.userBlob, 'trade_currency_pairs');
+
       // Remember user preference on Convert vs. Trade
       if (!settings.getSetting($scope.userBlob, 'rippleExchangeSelectionTrade', false)) {
         $scope.userBlob.set('/clients/rippletradecom/rippleExchangeSelectionTrade', true);
@@ -91,11 +95,13 @@ TradeTab.prototype.angular = function(module)
     function update_pairs() {
       var d = $scope.userBlob.data;
       if (!settings.hasSetting($scope.userBlob, 'trade_currency_pairs')) {
-        $scope.pairs_query = [{name: 'XRP/USD.rMwjYedjc7qqtKYVLiAccJSmCwih4LnE2q' },
+        $scope.pairs_query = [
+          { name: 'XRP/USD.rMwjYedjc7qqtKYVLiAccJSmCwih4LnE2q' },
           { name: 'XRP/USD.rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B' },
           { name: 'XRP/JPY.r94s8px6kSw1uZ1MV98dhSRTvc6VMPoPcN' },
           { name: 'BTC.rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B/XRP' },
-          { name: 'BTC.rMwjYedjc7qqtKYVLiAccJSmCwih4LnE2q/XRP' }];
+          { name: 'BTC.rMwjYedjc7qqtKYVLiAccJSmCwih4LnE2q/XRP' }
+        ];
       }
       else {
         $scope.pairs_query = settings.getSetting($scope.userBlob, 'trade_currency_pairs');
@@ -573,6 +579,7 @@ TradeTab.prototype.angular = function(module)
       }
     };
     $scope.flip_issuer = function () {
+      $scope.order.currency_pair_label = null;
       var order = $scope.order;
       if (!order.valid_settings) return;
       var currency = order['first_currency'];
@@ -588,12 +595,57 @@ TradeTab.prototype.angular = function(module)
       updateMRU();
     }
 
+    var updateInputCurrencyPairView = function(){
+
+      if($scope.order.currency_pair){
+        $scope.order.currency_pair_label = pairsQueryUtils.replaceAddressesByLabels($scope.order.currency_pair);
+      }
+
+      $timeout(function(){
+        if($scope.order.currency_pair_label){
+          $($document[0].querySelector('#currency_pair')).val($scope.order.currency_pair_label);
+        }
+      },0);
+
+    }
+
+    var updateTradeChart = function(){
+
+      var base = {
+        currency: $scope.order.first_currency.to_json()
+      };
+
+      var counter = {
+        currency: $scope.order.second_currency.to_json()
+      };
+
+      if(base.currency != 'XRP'){
+        base.issuer = $scope.order.first_issuer;
+      }
+
+      if(counter.currency != 'XRP'){
+        counter.issuer = $scope.order.second_issuer;
+      }
+
+      $scope.tradeChartJsonBase = JSON.stringify(base);
+      $scope.tradeChartJsonCounter = JSON.stringify(counter);
+
+      $scope.tradeEmbeddedHTML = $sce.trustAsHtml("<iframe "
+        + "src='http://ripplecharts.com/embed/pricechart?theme=light&type=candlestick&counter=" + $scope.tradeChartJsonCounter + "=&base=" + $scope.tradeChartJsonBase + "&live=true' "
+        + "height='300' width='100%' frameborder='0' />");
+    }
+
     // This functions is called whenever the settings, specifically the pair and
     // the issuer(s) have been modified. It checks the new configuration and
     // sets $scope.valid_settings.
     function updateSettings() {
+
+      $scope.tradeEmbeddedHTML = '';
+
       var order = $scope.order;
       var pair = order.currency_pair;
+
+      updateInputCurrencyPairView();
 
       if (!store.disabled) {
         store.set('ripple_currency_pair', pair);
@@ -677,10 +729,13 @@ TradeTab.prototype.angular = function(module)
       });
 
       updateCanBuySell();
+
+      updateTradeChart();
+
       return changedPair;
     }
 
-    // This functions is called after the settings have been modified. 
+    // This functions is called after the settings have been modified.
     // It updates the most recent used pairs dropdown.
     function updateMRU() {
       var order = $scope.order;
@@ -886,6 +941,7 @@ TradeTab.prototype.angular = function(module)
           });
         });
       }
+      pairsQueryUtils.replaceKeyAddressByGatewayName($scope.first_iss);
     });
 
     $scope.$watch('second_currency_selected', function () {
@@ -910,6 +966,7 @@ TradeTab.prototype.angular = function(module)
           });
         });
       }
+      pairsQueryUtils.replaceKeyAddressByGatewayName($scope.second_iss);
     });
 
     $scope.gotoSettings = function() {
@@ -925,8 +982,10 @@ TradeTab.prototype.angular = function(module)
     }
 
     $scope.add_pair = function() {
+
       var formattedIssuerFirst = $scope.first_currency_selected === 'XRP' ? '' : '.' + $scope.first_issuer_selected;
       var formattedIssuerSecond = $scope.second_currency_selected === 'XRP' ? '' : '.' + $scope.second_issuer_selected;
+
       if (($scope.second_currency_selected !== 'XRP' && ($scope.second_issuer_selected == null || $scope.second_issuer_selected === '')) ||
           ($scope.first_currency_selected  !== 'XRP' && ($scope.first_issuer_selected  == null || $scope.first_issuer_selected  === ''))) {
         // this could happen if gate is not validated
@@ -935,14 +994,27 @@ TradeTab.prototype.angular = function(module)
 
       $scope.order.currency_pair = $scope.first_currency_selected + formattedIssuerFirst + '/' + $scope.second_currency_selected + formattedIssuerSecond;
 
+      $scope.order.currency_pair_label =
+        $scope.first_currency_selected
+        + ' ' + pairsQueryUtils.getGatewayNameByAddress($scope.first_issuer_selected)
+        + ' / '
+        + $scope.second_currency_selected
+        + ' ' + pairsQueryUtils.getGatewayNameByAddress($scope.second_issuer_selected)
+
       // var data = $scope.userBlob.data;
       // if (!data.clients || !data.clients.rippletradecom ||
       //     !data.clients.rippletradecom.trade_currency_pairs ||
       //     !angular.isArray(data.clients.rippletradecom.trade_currency_pairs)) {
       // } else {
-        $scope.userBlob.unshift('/clients/rippletradecom/trade_currency_pairs', { name: $scope.order.currency_pair });
+        $scope.userBlob.unshift(
+          '/clients/rippletradecom/trade_currency_pairs',
+          {
+            name: $scope.order.currency_pair,
+            label: $scope.order.currency_pair_label
+          }
+        );
       // }
-      
+
 
       $scope.adding_pair = false;
     };
@@ -983,7 +1055,8 @@ TradeTab.prototype.angular = function(module)
       }, true);
     });
 
-    $scope.$watch('order.currency_pair', function (pair) {
+    var currency_pair_listener = function(){
+
       if (currencyPairChangedByNonUser) {
         currencyPairChangedByNonUser = false;
         return;
@@ -995,7 +1068,19 @@ TradeTab.prototype.angular = function(module)
       updateSettings();
       resetIssuers(true);
       // updateMRU();
+
+    };
+
+    $scope.$watch('order.currency_pair', function (pair) {
+
+      // angular diggest setting render to last step
+      $timeout(currency_pair_listener,100);
+
     }, true);
+
+    $scope.updateSettings = function(){
+      updateSettings();
+    };
 
     $scope.$on('$blobUpdate', function () {
       resetIssuers(false);

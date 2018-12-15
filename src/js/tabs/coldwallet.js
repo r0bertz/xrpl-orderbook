@@ -1,8 +1,8 @@
 'use strict';
 
 var util = require('util');
-var Tab = require('../client/tab').Tab;
-var Amount = ripple.Amount;
+    Tab = require('../client/tab').Tab,
+    ripple = require('ripple-lib');
 
 function ColdWalletTab() {
   Tab.call(this);
@@ -130,7 +130,7 @@ ColdWalletTab.prototype.angular = function (module) {
               // To calcute the XRP reserve and available balance
               var ownerCount  = info.account_data.OwnerCount || 0;
               $scope.reserve = server._reserve(ownerCount);
-              var bal = Amount.from_json(info.account_data.Balance);
+              var bal = ripple.Amount.from_json(info.account_data.Balance);
               $scope.max_spend = bal.subtract($scope.reserve);
             });
           }).request();

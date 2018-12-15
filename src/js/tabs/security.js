@@ -1,8 +1,9 @@
-var util = require('util');
-var Tab  = require('../client/tab').Tab;
-var Base58Utils = require('../util/base58');
-var RippleAddress = require('../util/types').RippleAddress;
-var fs = require('fs');
+var util = require('util'),
+    Tab  = require('../client/tab').Tab,
+    Base58Utils = require('../util/base58'),
+    RippleAddress = require('../util/types').RippleAddress,
+    ripple = require('ripple-lib'),
+    fs = require('fs');
 
 var SecurityTab = function ()
 {

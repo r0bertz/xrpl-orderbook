@@ -2,8 +2,9 @@
 
 ## Install Dependencies
 
-- Fork and clone the ripple-client-desktop repository 
+- Fork and clone the ripple-client-desktop repository
 - Run `npm install`
+- Run `bower install`
 - Download [nw.js](https://github.com/nwjs/npm-installer)
 
 ## Build

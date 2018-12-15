@@ -5,6 +5,7 @@
  */
 
 var webutil = require('../util/web'),
+    ripple = require('ripple-lib'),
     Base = ripple.Base,
     Amount = ripple.Amount,
     Currency = ripple.Currency;

@@ -3,8 +3,9 @@ var util = require('util'),
     Tab = require('../client/tab').Tab,
     rewriter = require('../util/jsonrewriter'),
     fs = require('fs'),
+    ripple = require('ripple-lib'),
     Amount = ripple.Amount,
-    gui = require('nw.gui'),
+    gui = window.require('nw.gui'),
     json2csv = require('json2csv');
 
 var HistoryTab = function ()
@@ -454,6 +455,7 @@ HistoryTab.prototype.angular = function (module) {
             $scope.historyState = (history.length === newHistory.length) ? 'full' : 'ready';
             history = newHistory;
             updateHistory();
+
           }
         });
       }).request();

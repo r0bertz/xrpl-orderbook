@@ -1,7 +1,7 @@
 var util = require('util'),
     webutil = require('../util/web'),
     Tab = require('../client/tab').Tab,
-    Currency = ripple.Currency;
+    ripple = require('ripple-lib');
 
 var AdvancedTab = function ()
 {
@@ -29,7 +29,7 @@ AdvancedTab.prototype.angular = function(module)
     }
     // XRP currency object.
     // {name: "XRP - Ripples", order: 146, value: "XRP"}
-    var xrpCurrency = Currency.from_json("XRP");
+    var xrpCurrency = ripple.Currency.from_json("XRP");
 
     $scope.xrp = {
       name: xrpCurrency.to_human({full_name:$scope.currencies_all_keyed.XRP.name}),

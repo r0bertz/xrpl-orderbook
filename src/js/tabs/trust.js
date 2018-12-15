@@ -1,8 +1,8 @@
-var util = require('util');
-var webutil = require('../util/web');
-var Tab = require('../client/tab').Tab;
-var Currency = ripple.Currency;
-var fs = require('fs');
+var util = require('util'),
+    webutil = require('../util/web'),
+    Tab = require('../client/tab').Tab,
+    ripple = require('ripple-lib'),
+    fs = require('fs');
 
 var TrustTab = function ()
 {
@@ -143,7 +143,7 @@ TrustTab.prototype.angular = function (module) {
           // hide throbber
           $scope.verifying = false;
 
-          $scope.lineCurrencyObj = Currency.from_human($scope.currency);
+          $scope.lineCurrencyObj = ripple.Currency.from_human($scope.currency);
           var matchedCurrency = $scope.lineCurrencyObj.has_interest() ? $scope.lineCurrencyObj.to_hex() : $scope.lineCurrencyObj.get_iso();
           var match = /^([a-zA-Z0-9]{3}|[A-Fa-f0-9]{40})\b/.exec(matchedCurrency);
 
@@ -398,7 +398,7 @@ TrustTab.prototype.angular = function (module) {
         $scope.trust.balance = String($scope.component.balance.to_json().value);
         $scope.trust.balanceAmount = $scope.component.balance;
 
-        var currency = Currency.from_human($scope.component.currency);
+        var currency = ripple.Currency.from_human($scope.component.currency);
 
         if (currency.to_human({full_name: $scope.currencies_all_keyed[currency.get_iso()]})) {
           $scope.trust.currency = currency.to_human({

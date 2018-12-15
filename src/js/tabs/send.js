@@ -1,10 +1,7 @@
 var util = require('util'),
     webutil = require('../util/web'),
     Tab = require('../client/tab').Tab,
-    Amount = ripple.Amount,
-    Currency = ripple.Currency,
-    Base = ripple.Base,
-    RippleError = ripple.RippleError,
+    ripple = require('ripple-lib'),
     fs = require('fs');    
 
 var SendTab = function ()
@@ -37,7 +34,7 @@ SendTab.prototype.angular = function (module)
 
     // XRP currency object.
     // {name: "XRP - Ripples", order: 146, value: "XRP"}
-    var xrpCurrency = Currency.from_json("XRP");
+    var xrpCurrency = ripple.Currency.from_json("XRP");
 
     $scope.xrp = {
       name: xrpCurrency.to_human({full_name:$scope.currencies_all_keyed["XRP"].name}),
@@ -536,7 +533,7 @@ SendTab.prototype.angular = function (module)
             $scope.send.alternatives = _.map(upd.alternatives, function (raw, key) {
               var alt = {};
 
-              alt.amount = Amount.from_json(raw.source_amount);
+              alt.amount = ripple.Amount.from_json(raw.source_amount);
 
               // Compensate for demurrage
               //
@@ -548,7 +545,9 @@ SendTab.prototype.angular = function (module)
               alt.rate = alt.amount.ratio_human(amount, {reference_date: slightlyInFuture});
 
               // Send max is 1.01 * amount
-              var scaleAmount = alt.amount.to_json();
+              // var scaleAmount = alt.amount.to_json();
+              var scaleAmount = { issuer: alt.amount._issuer };
+
               scaleAmount.value = 1.01;
               alt.send_max = alt.amount.scale(scaleAmount);
 
@@ -598,7 +597,7 @@ SendTab.prototype.angular = function (module)
         recipient_prev: '',
         recipient_info: {},
         amount: '',
-        amount_prev: new Amount(),
+        amount_prev: new ripple.Amount(),
         currency: $scope.xrp.name,
         currency_choices: [],
         currency_code: "XRP",

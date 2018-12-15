@@ -1,5 +1,6 @@
 var module = angular.module('filters', []),
     webutil = require('../util/web'),
+    ripple = require('ripple-lib'),
     Amount = ripple.Amount,
     Currency = ripple.Currency,
     Base = ripple.Base;
