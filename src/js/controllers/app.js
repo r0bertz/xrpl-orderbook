@@ -6,7 +6,7 @@
 
 var rewriter = require('../util/jsonrewriter'),
   genericUtils = require('../util/generic'),
-  Amount = ripple.Amount,
+  ripple = require('ripple-lib'),
   RippleAddress = require('../util/types').RippleAddress,
   fs = require('fs');
 
@@ -319,8 +319,7 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
     $scope.loadState['account'] = true;
   }
 
-  function handleAccountTx(data)
-  {
+  function handleAccountTx(data){
     $scope.$apply(function () {
       $scope.tx_marker = data.marker;
 

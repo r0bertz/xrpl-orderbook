@@ -31,6 +31,7 @@ require('../services/ledger');
 require('../services/popup');
 require('../services/nwhelpers');
 require('../services/filedialog');
+require('../services/pairsqueryutils');
 
 // Angular module dependencies
 var appDependencies = [
@@ -43,6 +44,7 @@ var appDependencies = [
   'id',
   'filedialog',
   'nwhelpers',
+  'pairsqueryutils',
   // Directives
   'charts',
   'effects',
@@ -241,8 +243,9 @@ if ("function" === typeof angular.resumeBootstrap) {
  * NW.js stuff
  */
 
-var gui = require('nw.gui');
+var gui = window.require('nw.gui');
 var win = gui.Window.get();
+win.showDevTools();
 
 // Edit menu
 if (process.platform === "darwin") {

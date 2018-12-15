@@ -4,7 +4,7 @@
  * The navbar controller manages the bar at the top of the screen.
  */
 
-var Amount = ripple.Amount,
+var ripple = require('ripple-lib'),
     rewriter = require('../util/jsonrewriter');
 
 var module = angular.module('navbar', []);

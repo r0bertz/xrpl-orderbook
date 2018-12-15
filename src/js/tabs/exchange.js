@@ -1,8 +1,8 @@
 var util = require('util'),
     webutil = require('../util/web'),
     Tab = require('../client/tab').Tab,
+    ripple = require('ripple-lib'),
     Amount = ripple.Amount,
-    Base = ripple.Base,
     Currency = ripple.Currency;
 
 var ExchangeTab = function ()
@@ -98,7 +98,7 @@ ExchangeTab.prototype.angular = function (module)
       var pathUpdateTimeout;
       $scope.update_exchange = function () {
         var exchange = $scope.exchange;
-        var currency = ripple.Currency.from_human(exchange.currency_name);
+        var currency = Currency.from_human(exchange.currency_name);
 
         $scope.reset_paths();
 
@@ -231,7 +231,7 @@ ExchangeTab.prototype.angular = function (module)
 
         // create a currency object for each of the currency codes
         for (var i=0; i < currencies.length; i++) {
-          currencies[i] = ripple.Currency.from_json(currencies[i]);
+          currencies[i] = Currency.from_json(currencies[i]);
         }
 
         // create the display version of the currencies

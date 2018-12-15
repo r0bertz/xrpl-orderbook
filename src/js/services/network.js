@@ -6,7 +6,8 @@
  * It encapsulates a ripple.Remote instance.
  */
 
-var module = angular.module('network', []);
+var module = angular.module('network', []),
+    ripple = require('ripple-lib');
 
 module.factory('rpNetwork', ['$rootScope', function($scope)
 {
@@ -22,11 +23,11 @@ module.factory('rpNetwork', ['$rootScope', function($scope)
    */
   var Network = function() {
     this.connected = false;
-    this.remote = new ripple.Remote(Options.server, true);
+    this.remote = new ripple.Remote(Options.connection, true);
   };
 
   Network.prototype.connect = function(serverSettings) {
-    serverSettings = serverSettings ? serverSettings : Options.server;
+    serverSettings = serverSettings ? serverSettings : Options.connection;
 
     this.remote = new ripple.Remote(serverSettings, true);
     this.remote.on('connected', this.handleConnect.bind(this));

@@ -4,8 +4,8 @@
  * The books service is used to keep track of orderbooks.
  */
 
-var module = angular.module('books', ['network']);
-var Amount = ripple.Amount;
+var module = angular.module('books', ['network']),
+    Amount = require('ripple-lib').Amount;
 
 
 module.factory('rpBooks', ['rpNetwork', '$q', '$rootScope', '$filter', 'rpId',

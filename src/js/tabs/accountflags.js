@@ -1,5 +1,6 @@
 var util = require('util'),
-    Tab = require('../client/tab').Tab;
+    Tab = require('../client/tab').Tab,
+    ripple = require('ripple-lib');
 
 var AccountFlagsTab = function() {
   Tab.call(this);

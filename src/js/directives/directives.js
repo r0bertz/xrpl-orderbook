@@ -4,7 +4,8 @@
  * Miscellaneous directives go in this file.
  */
 
-var module = angular.module('directives', ['popup']);
+var module = angular.module('directives', ['popup']),
+    ripple = require('ripple-lib');
 
 /**
  * Inline edit

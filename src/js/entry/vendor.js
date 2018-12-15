@@ -17,7 +17,4 @@ require('angular-route');
 require('angular-messages');
 require('angular-ui-bootstrap');
 require('ng-sortable/dist/ng-sortable');
-require('bootstrap/js/modal');
-require('bootstrap/js/dropdown');
-require('bootstrap/js/tooltip');
-require('bootstrap/js/popover');
+require('bootstrap');

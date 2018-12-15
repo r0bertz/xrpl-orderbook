@@ -6,6 +6,7 @@ var fs = require('fs');
 var _ = require('lodash');
 var PriorityQueue = require('priorityqueuejs');
 var async = require('async');
+var ripple = require('ripple-lib');
 
 var SubmitTab = function ()
 {

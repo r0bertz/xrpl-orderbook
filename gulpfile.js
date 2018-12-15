@@ -1,18 +1,20 @@
+/* globals require, console */
+
 'use strict';
 
 var gulp = require('gulp'),
   shell = require('gulp-shell'),
   merge = require('merge-stream'),
   modRewrite = require('connect-modrewrite'),
-  BannerPlugin = require('gulp-webpack/node_modules/webpack/lib/BannerPlugin'),
-  UglifyJsPlugin = require('gulp-webpack/node_modules/webpack/lib/optimize/UglifyJsPlugin'),
+  webpack = require('webpack'),
+  UglifyJsPlugin = require('uglifyjs-webpack-plugin'),
   jade = require('jade'),
   jadeL10n = require('jade-l10n'),
   NwBuilder = require('nw-builder'),
-  runSequence = require('run-sequence'),
-
-  meta = require('./package.json');
-  //languages = require('./l10n/languages.json').active;
+  useref = require('gulp-useref'),
+  gulpWebpack = require('webpack-stream'),
+  meta = require('./package.json'),
+  languages = require('./l10n/languages.json').active;
 
 var $ = require('gulp-load-plugins')({
   pattern: ['gulp-*', 'del', 'browser-sync']
@@ -25,35 +27,39 @@ var PACKAGES_FOLDER = 'packages/';
 require('events').EventEmitter.prototype._maxListeners = 100;
 
 // Clean the build folder
-gulp.task('clean:dev', function () {
+gulp.task('clean:dev', function(done) {
   $.del.sync([
     TMP_DIR + 'js',
     TMP_DIR + 'templates',
     TMP_DIR + 'main.css',
     TMP_DIR + 'index.html'
   ]);
+  done();
 });
 
-gulp.task('clean:dist', function () {
+gulp.task('clean:dist', function (done) {
   $.del.sync([BUILD_DIR + '*']);
+  done();
 });
 
 // Webpack
 gulp.task('webpack:vendor:dev', function() {
   return gulp.src('src/js/entry/vendor.js')
-    .pipe($.webpack({
+    .pipe(gulpWebpack({
+      mode: 'development',
+      node: {
+        fs: 'empty'
+      },
       output: {
         filename: 'vendor.js'
       },
       module: {
-        loaders: [
-          {test: /\.json$/, loader: 'json-loader'},
-          {test: /\.js$/, exclude: /node_modules/, loader: 'babel-loader?optional=runtime'}
+        rules: [
+          { test: /\.js$/, exclude: /node_modules/, loader: 'babel-loader' }
         ]
       },
       target: 'node-webkit',
       cache: true,
-      debug: true
     }))
     .pipe(gulp.dest(TMP_DIR + 'js/'))
     .pipe($.browserSync.reload({stream:true}));
@@ -61,18 +67,21 @@ gulp.task('webpack:vendor:dev', function() {
 
 gulp.task('webpack:vendor:dist', function() {
   return gulp.src('src/js/entry/vendor.js')
-    .pipe($.webpack({
+    .pipe(gulpWebpack({
+      mode: 'production',
+      node: {
+        fs: 'empty'
+      },
       output: {
         filename: "vendor.js"
       },
       module: {
-        loaders: [
-          {test: /\.json$/, loader: 'json-loader'},
-          {test: /\.js$/, exclude: /node_modules/, loader: 'babel-loader?optional=runtime'}
+        rules: [
+          { test: /\.js$/, exclude: /node_modules/, loader: 'babel-loader' }
         ]
       },
       target: 'node-webkit',
-      debug: false
+      cache: true,
     }))
     .pipe(gulp.dest(BUILD_DIR + 'js/'))
 });
@@ -81,11 +90,14 @@ gulp.task('webpack:dev', function() {
   // TODO jshint
   // TODO move to js/entry.js
   return gulp.src('src/js/entry/entry.js')
-    .pipe($.webpack({
+    .pipe(gulpWebpack({
+      mode: 'development',
+      node: {
+        fs: 'empty'
+      },
       module: {
-        loaders: [
+        rules: [
           { test: /\.jade$/, loader: "jade-loader" },
-          { test: /\.json$/, loader: "json-loader" }
         ]
       },
       output: {
@@ -93,7 +105,6 @@ gulp.task('webpack:dev', function() {
       },
       target: 'node-webkit',
       cache: true,
-      debug: true
     }))
     .pipe(gulp.dest(TMP_DIR + 'js/'))
     .pipe($.browserSync.reload({stream:true}));
@@ -101,26 +112,28 @@ gulp.task('webpack:dev', function() {
 
 gulp.task('webpack:dist', function() {
   return gulp.src('src/js/entry/entry.js')
-    .pipe($.webpack({
+    .pipe(gulpWebpack({
+      mode: 'production',
+      node: {
+        fs: 'empty'
+      },
       module: {
-        loaders: [
+        rules: [
           { test: /\.jade$/, loader: "jade-loader" },
-          { test: /\.json$/, loader: "json-loader" }
         ]
       },
       output: {
         filename: "app.js"
       },
-      plugins: [
-        new BannerPlugin('Ripple Admin Console v' + meta.version + '\nCopyright (c) ' + new Date().getFullYear() + ' ' + meta.author.name + '\nLicensed under the ' + meta.license + ' license.'),
-        new UglifyJsPlugin({
-          compress: {
-            warnings: false
-          }
-        })
-      ],
       target: 'node-webkit',
-      debug: false
+      cache: true,
+      // TODO: Figure out how to make this work.
+      // optimization: {
+      //   minimizer: [new UglifyJsPlugin()]
+      // },
+      plugins: [
+        new webpack.BannerPlugin('Ripple Admin Console v' + meta.version + '\nCopyright (c) ' + new Date().getFullYear() + ' ' + meta.author.name + '\nLicensed under the ' + meta.license + ' license.')
+      ]
     }))
     .pipe(gulp.dest(BUILD_DIR + 'js/'));
 });
@@ -146,7 +159,7 @@ gulp.task('l10nExtract', function () {
 });
 
 // Static server
-gulp.task('serve', function() {
+gulp.task('serve', function(done) {
   $.browserSync({
     open: false,
     server: {
@@ -158,6 +171,7 @@ gulp.task('serve', function() {
       ]
     }
   });
+  done();
 });
 
 // Launch node-webkit
@@ -246,26 +260,6 @@ gulp.task('templates:dev', function () {
     .pipe(gulp.dest(TMP_DIR + 'templates/en'))
 });
 
-//var languageTasks = [];
-
-//languages.forEach(function(language){
-//  gulp.task('templates:' + language.code, function(){
-//    return gulp.src('src/templates/**/*.jade')
-//      .pipe($.jade({
-//        jade: jadeL10n,
-//        languageFile: 'l10n/' + language.code + '/messages.po',
-//        pretty: true
-//      }))
-//      .pipe(gulp.dest(BUILD_DIR + 'templates/' + language.code));
-//  });
-
-  //languageTasks.push('templates:' + language.code);
-//});
-
-//gulp.task('templates:dist', function(){
-//  runSequence(languageTasks)
-//});
-
 gulp.task('templates:dist', function() {
   return gulp.src('src/templates/**/*.jade')
     .pipe($.jade({
@@ -277,22 +271,24 @@ gulp.task('templates:dist', function() {
 });
 
 // Default Task (Dev environment)
-gulp.task('default', function() {
-  runSequence(
-    ['clean:dev', 'webpack:dev', 'webpack:vendor:dev', 'less', 'templates:dev',  'gitVersion'],
+gulp.task('default',
+  gulp.series(
+    gulp.parallel('clean:dev', 'less', 'templates:dev',  'gitVersion'),
+    'webpack:dev',
+    'webpack:vendor:dev', 
     'preprocess:dev',
     'serve',
     'nwlaunch'
-  );
-
+  ),
+ function(done) {
   // Webpack
-  gulp.watch(['src/js/**/*.js', 'config.js', '!src/js/entry/vendor.js'], ['webpack:dev']);
+  gulp.watch(['src/js/**/*.js', 'config.js', '!src/js/entry/vendor.js'], gulp.task('webpack:dev'));
 
   // Webpack for vendor files
-  gulp.watch(['src/js/entry/vendor.js'], ['webpack:vendor:dev']);
+  gulp.watch(['src/js/entry/vendor.js'], gulp.task('webpack:vendor:dev'));
 
   // Templates
-  gulp.watch(['src/templates/**/*.jade'], ['templates:dev']);
+  gulp.watch(['src/templates/**/*.jade'], gulp.task('templates:dev'));
 
   // index.html preprocessing
   $.watch(TMP_DIR + 'templates/en/*.html', function(){
@@ -302,15 +298,16 @@ gulp.task('default', function() {
   // Reload
   $.watch(TMP_DIR + 'templates/**/*', $.browserSync.reload);
 
-  gulp.watch('src/less/**/*', ['less']);
+  gulp.watch('src/less/**/*', gulp.task('less'));
+
+  done();
 });
 
 gulp.task('deps', function () {
-  var assets = $.useref.assets();
 
   return gulp.src([BUILD_DIR + 'index.html'])
     // Concatenates asset files from the build blocks inside the HTML
-    .pipe(assets)
+    .pipe(useref())
     // Appends hash to extracted files app.css → app-098f6bcd.css
     .pipe($.rev())
     // Adds AngularJS dependency injection annotations
@@ -320,10 +317,6 @@ gulp.task('deps', function () {
     .pipe($.if('*.js', $.uglify()))
     // Minifies css files
     .pipe($.if('*.css', $.csso()))
-    // Brings back the previously filtered HTML files
-    .pipe(assets.restore())
-    // Parses build blocks in html to replace references to non-optimized scripts or stylesheets
-    .pipe($.useref())
     // Rewrites occurences of filenames which have been renamed by rev
     .pipe($.revReplace())
     // Minifies html
@@ -347,12 +340,12 @@ gulp.task('build', function() {
     appName: meta.name + '-' + meta.version,
     appVersion: meta.version,
     buildDir: PACKAGES_FOLDER,
-    macZip: true,
+    zip: true,
     cacheDir: TMP_DIR,
     version: '0.12.3',
     // TODO: timestamped versions
-    macIcns: './res/dmg/xrp_ripple_logo.icns'
-    // TODO: winIco
+    macIcns: './res/dmg/xrp_ripple_logo.icns',
+    winIco: './res/dmg/xrp_ripple_logo.ico'
   });
 
   return nw.build()
@@ -392,12 +385,13 @@ gulp.task('zip', function() {
 });
 
 // Final product
-gulp.task('packages', function() {
-  return runSequence(
-    ['clean:dist', 'webpack:dist', 'webpack:vendor:dist', 'less', 'templates:dist', 'static', 'gitVersion'],
+gulp.task('packages', gulp.series(
+    gulp.parallel('clean:dist', 'less', 'templates:dist', 'static', 'gitVersion'),
+    'webpack:dist',
+    'webpack:vendor:dist', 
     'preprocess:dist',
     'deps',
     'build',
     'zip'
-  )
-});
+  ), function(done) { done(); }
+);
