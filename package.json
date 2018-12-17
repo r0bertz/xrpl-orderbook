@@ -118,5 +118,8 @@
     "uglifyjs-webpack-plugin": "^2.0.1",
     "webpack-stream": "^5.2.1"
   },
-  "optionalDependencies": {}
+  "optionalDependencies": {
+    "bufferutil": "github:websockets/bufferutil",
+    "utf-8-validate": "github:websockets/utf-8-validate"
+  }
 }
