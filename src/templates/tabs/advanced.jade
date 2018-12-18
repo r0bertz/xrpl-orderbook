@@ -115,47 +115,25 @@ section.col-sm-12.content(ng-controller="AdvancedCtrl")
                 a.btn.btn-cancel.btn-block(href="", ng-click="editProxy = true", l10n) edit
 
         h4#serverSettings(ng-show="onlineMode", l10n) Server settings
-        form.server-row-form(ng-show="onlineMode", ng-controller="ServerRowCtrl", ng-repeat="(index, server) in options.connection.servers", ng-submit="save()")
+        form.server-row-form(ng-show="onlineMode", ng-controller="ServerRowCtrl", ng-submit="save()")
           ng-form(name="serverForm")
             .row.row-padding-small
               .col-sm-3
-                .descriptor(l10n) WebSocket host name
-              .col-sm-3
-                .descriptor(l10n) Port number
+                .descriptor(l10n) WebSocket server
             .row.row-padding-small(ng-show="editing")
               .col-sm-3.hostname-wrapper
-                input.form-control.host(name='host', type='text', ng-model='server.host', rp-hostname)
-                .errorGroup
-                  div(rp-errors='host')
-                    .error(rp-error-on='rpHostname', l10n) Socket ip or hostname is invalid.
-                  div(rp-errors='port')
-                    .error(rp-error-on='rpPortNumber', l10n) Port number is invalid.
-              .col-sm-2
-                input.form-control.socketPort(name='port', type='text', ng-model='server.port', rp-port-number)
-              .col-sm-2.editable
-                .helperInput
-                  label
-                    input(type="checkbox", name="secure", ng-model='server.secure')
-                    span(l10n) Secure
+                input.form-control.host(name='host', type='text', ng-model='server', rp-hostname)
+                // TODO: errorGroup should report error if server is invalid.
+                // .errorGroup
+                //   div(rp-errors='host')
+                //     .error(rp-error-on='rpHostname', l10n) Socket ip or hostname is invalid.
               .col-sm-2
                 button.btn.btn-block.btn-success.btn-xs.submit#save(type='submit'
                 ng-disabled='serverForm.$invalid', l10n) Save
-              //.col-sm-2(ng-show="hasRemove()")
-              .col-sm-2
-                button.btn.btn-block.btn-danger.btn-xs.submit#delete(type="button", ng-click="remove()", l10n) Delete
               .col-sm-1.text-center#cancel
                 a.btn.btn-cancel.btn-block(href="", ng-click="cancel()", ng-hide="noCancel()", l10n) cancel
             .row.row-padding-small.advanced-form-row(ng-hide="editing")
               .col-sm-3
-                .description {{server.host}}
-              .col-sm-2
-                .description {{server.port}}
-              .col-sm-5
-                .description(ng-show="server.secure", l10n) Secure
-                .description(ng-hide="server.secure", l10n) Not Secure
+                .description {{server}}
               .col-sm-2
                 a.btn.btn-cancel.btn-block(href="", ng-click="editing = true", l10n) edit
-
-        .row
-          .col-sm-6.col-md-3
-            button.btn.btn-block.btn-primary#newServer(ng-show="onlineMode", type="button", ng-click="addServer()", l10n) Add new server

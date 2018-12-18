@@ -45,10 +45,6 @@ AdvancedTab.prototype.angular = function(module)
     $scope.max_tx_network_fee_human = ripple.Amount.from_json($scope.options.max_tx_network_fee).to_human();
 
     $scope.saveSetings = function() {
-      // force serve ports to be number
-      _.forEach($scope.options.connection.servers, function(s) {
-        s.port = +s.port;
-      });
       // Save in local storage
       if (!store.disabled) {
         store.set('ripple_settings', angular.toJson($scope.options));
@@ -89,50 +85,24 @@ AdvancedTab.prototype.angular = function(module)
       $scope.editAcctOptions = false;
     };
 
-    // Add a new server
-    $scope.addServer = function () {
-      // Create a new server line
-      if(!$scope.options.connection.servers.isEmptyServer)
-        $scope.options.connection.servers.push({isEmptyServer: true, secure: false});
-
-      // Set editing to true
-      $scope.editing = true;
-      
-    };
-
   }]);
 
   module.controller('ServerRowCtrl', ['$scope', '$route',
     function ($scope, $route) {
-      $scope.editing = $scope.server.isEmptyServer;
-
-        // Delete the server
-      $scope.remove = function () {
-        $scope.options.connection.servers.splice($scope.index,1);
-
-        $scope.saveSetings();
-        if (!$scope.server.isEmptyServer) {
-          $route.reload();
-        }
-      };
+      $scope.editing = false;
+      $scope.server = $.extend({ '$$hashKey' : $scope.server.$$hashKey }, $scope.options.connection.server);
 
       $scope.cancel = function () {
-        if ($scope.server.isEmptyServer) {
-          $scope.remove();
-          return;
-        }
-
         $scope.editing = false;
-        $scope.server = $.extend({ '$$hashKey' : $scope.server.$$hashKey }, $scope.optionsBackup.server.servers[$scope.index]);
-        Options.connection.servers[$scope.index] = $.extend({}, $scope.optionsBackup.server.servers[$scope.index]);
+        $scope.server = $.extend({ '$$hashKey' : $scope.server.$$hashKey }, $scope.optionsBackup.connection.server);
+        Options.connection.server = $.extend({}, $scope.optionsBackup.connection.server);
       };
 
       $scope.noCancel = function () {
-        return $scope.server.isEmptyServer && $scope.options.connection.servers.length === 1;
+        return $scope.editing == false;
       };
 
       $scope.save = function () {
-        $scope.server.isEmptyServer = false;
         $scope.editing = false;
 
         $scope.saveSetings();
