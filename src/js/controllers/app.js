@@ -561,7 +561,7 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
   _.forEach($scope.currencies_all, function(currency) {
 
     // find the currency in the local storage
-    var allCurrencyHit = _.where(storeCurrenciesAll, {value: currency.value})[0];
+    var allCurrencyHit = _.filter(storeCurrenciesAll, {value: currency.value})[0];
 
     // if the currency already exists in local storage, updated only the name
     if (allCurrencyHit) {
