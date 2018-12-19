@@ -33,7 +33,7 @@ module.controller('NavbarCtrl', ['$scope', '$element', '$compile', 'rpId',
     }
     else if ($scope.connected) {
       getFee();
-      if ((parseFloat(ripple.Amount.from_json($scope.fee).to_human()) > parseFloat(Options.low_load_threshold)) && (parseFloat($scope.fee) < parseFloat(Options.max_tx_network_fee))) {
+      if ((parseFloat($scope.fee) > parseFloat(Options.low_load_threshold)) && (parseFloat($scope.fee) < parseFloat(Options.max_tx_network_fee))) {
         $scope.serverLoad = 'mediumLoad';
         $scope.serverStatus = 'mediumLoad';
       } else if (parseFloat($scope.fee) >= parseFloat(Options.max_tx_network_fee)) {

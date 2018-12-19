@@ -30,10 +30,30 @@ module.factory('rpNetwork', ['$rootScope', function($scope)
     serverSettings = serverSettings ? serverSettings : Options.connection;
 
     this.remote = new ripple.RippleAPI(serverSettings);
-    this.remote.on('connected', this.handleConnect.bind(this));
-    this.remote.on('disconnected', this.handleDisconnect.bind(this));
+    this.remote.on('connected', () => {
+      console.log('connected');
+      var self = this;
+      self.connected = true;
+      $scope.connected = true;
+      $scope.$broadcast('$netConnected');
 
-    if (serverSettings && serverSettings.server.length) {
+      if(!$scope.$$phase) {
+        $scope.$apply()
+      }
+    });
+    this.remote.on('disconnected', (code) => {
+      console.log('disconnected, code:', code);
+      var self = this;
+      self.connected = false;
+      $scope.connected = false;
+      $scope.$broadcast('$netDisconnected');
+
+      if(!$scope.$$phase) {
+        $scope.$apply()
+      }
+    });
+
+    if (serverSettings && serverSettings.server) {
       await this.remote.connect();
     }
   };
@@ -54,31 +74,6 @@ module.factory('rpNetwork', ['$rootScope', function($scope)
   Network.prototype.listenId = function (id)
   {
     var self = this;
-  };
-
-  Network.prototype.handleConnect = function (e)
-  {
-    var self = this;
-
-    self.connected = true;
-    $scope.connected = true;
-    $scope.$broadcast('$netConnected');
-
-    if(!$scope.$$phase) {
-      $scope.$apply()
-    }
-  };
-
-  Network.prototype.handleDisconnect = function (e)
-  {
-    var self = this;
-    self.connected = false;
-    $scope.connected = false;
-    $scope.$broadcast('$netDisconnected');
-
-    if(!$scope.$$phase) {
-      $scope.$apply()
-    }
   };
 
   return new Network();
