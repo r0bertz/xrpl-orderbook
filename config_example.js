@@ -7,13 +7,7 @@ var Options = {
   // Rippled to connect
   connection: {
     trace: false,
-    trusted: true,
-    local_signing: true,
-
-    servers: [
-      { host: 's-west.ripple.com', port: 443, secure: true },
-      { host: 's-east.ripple.com', port: 443, secure: true }
-    ]
+    server: 'wss://s1.ripple.com'
   },
 
   // Number of transactions each page has in balance tab notifications
@@ -38,16 +32,10 @@ var Options = {
 if (store.enabled) {
   var settings = JSON.parse(store.get('ripple_settings') || '{}');
 
-  if (settings.connection && settings.connection.servers) {
-    var servers = _.filter(settings.connection.servers, function(s) {
-      return !s.isEmptyServer && _.isNumber(s.port) && !_.isNaN(s.port);
-    });
-
-    if (!servers.length) {
-      servers = Options.connection.servers;
+  if (settings.connection) {
+    if (!settings.connection.server) {
+      settings.connection.server = Options.connection.server;
     }
-    settings.connection.servers = servers;
-
     Options.connection = settings.connection;
   }
 
