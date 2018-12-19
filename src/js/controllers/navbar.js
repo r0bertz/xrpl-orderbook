@@ -23,13 +23,16 @@ module.controller('NavbarCtrl', ['$scope', '$element', '$compile', 'rpId',
     $scope.show_secondary = !$scope.show_secondary;
   };
 
-  function serverStatusUpdate() {
-    $scope.fee = network.remote.createTransaction()._computeFee();
+  async function getFee() {
+    $scope.fee = await network.remote.getFee()
+  }
 
+  function serverStatusUpdate() {
     if (!$scope.connected && $scope.userCredentials.username) {
       $scope.serverStatus = 'disconnected';
     }
-    else if ($scope.connected && $scope.fee) {
+    else if ($scope.connected) {
+      getFee();
       if ((parseFloat(ripple.Amount.from_json($scope.fee).to_human()) > parseFloat(Options.low_load_threshold)) && (parseFloat($scope.fee) < parseFloat(Options.max_tx_network_fee))) {
         $scope.serverLoad = 'mediumLoad';
         $scope.serverStatus = 'mediumLoad';
@@ -40,9 +43,6 @@ module.controller('NavbarCtrl', ['$scope', '$element', '$compile', 'rpId',
         $scope.serverLoad = '';
         $scope.serverStatus = 'lowLoad';
       }
-    }
-    else {
-      $scope.serverStatus = 'connected';
     }
   }
 

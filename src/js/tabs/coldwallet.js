@@ -75,11 +75,15 @@ ColdWalletTab.prototype.angular = function (module) {
     var address = $routeParams.address;
     $scope.address = address;
 
+    async function getFee() {
+      $scope.networkFee = await network.remote.getFee();
+    }
+
     // If we are online, fetch account info
     var watcher = $scope.$watch('connected', function() {
       if (!$scope.connected) return;
 
-      $scope.networkFee = network.remote.createTransaction()._computeFee() / 1000000;
+      getFee();
 
       var account = network.remote.account(address);
       var server = network.remote._getServer();
