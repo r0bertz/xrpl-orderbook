@@ -26,24 +26,21 @@ module.factory('rpNetwork', ['$rootScope', function($scope)
     this.remote = new ripple.RippleAPI(Options.connection);
   };
 
-  Network.prototype.connect = function(serverSettings) {
+  Network.prototype.connect = async function(serverSettings) {
     serverSettings = serverSettings ? serverSettings : Options.connection;
 
     this.remote = new ripple.RippleAPI(serverSettings);
     this.remote.on('connected', this.handleConnect.bind(this));
     this.remote.on('disconnected', this.handleDisconnect.bind(this));
 
-    // Set network max transaction fee from Options, or default to 12 drops of XRP
-    this.remote.max_fee = Options.max_tx_network_fee || 12;
-
     if (serverSettings && serverSettings.server.length) {
-      this.remote.connect();
+      await this.remote.connect();
     }
   };
 
-  Network.prototype.disconnect = function() {
-    if (this.remote) {
-      this.remote.disconnect();
+  Network.prototype.disconnect = async function() {
+    if (this.connected) {
+      await this.remote.disconnect();
     }
   };
 
