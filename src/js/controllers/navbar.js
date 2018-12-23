@@ -12,7 +12,7 @@ var module = angular.module('navbar', []);
 module.controller('NavbarCtrl', ['$scope', '$element', '$compile', 'rpId',
                                  'rpNetwork', '$location',
                                  function ($scope, el, $compile, $id,
-                                           network, $location)
+                                           $net, $location)
 {
   var queue = [];
   var tickInterval = 4000;
@@ -23,16 +23,12 @@ module.controller('NavbarCtrl', ['$scope', '$element', '$compile', 'rpId',
     $scope.show_secondary = !$scope.show_secondary;
   };
 
-  async function getFee() {
-    $scope.fee = await network.remote.getFee()
-  }
-
-  function serverStatusUpdate() {
+  async function serverStatusUpdate() {
     if (!$scope.connected && $scope.userCredentials.username) {
       $scope.serverStatus = 'disconnected';
     }
     else if ($scope.connected) {
-      getFee();
+      $scope.fee = await $net.api.getFee()
       if ((parseFloat($scope.fee) > parseFloat(Options.low_load_threshold)) && (parseFloat($scope.fee) < parseFloat(Options.max_tx_network_fee))) {
         $scope.serverLoad = 'mediumLoad';
         $scope.serverStatus = 'mediumLoad';

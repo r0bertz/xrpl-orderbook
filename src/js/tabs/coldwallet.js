@@ -23,7 +23,7 @@ ColdWalletTab.prototype.extraRoutes = [
 
 ColdWalletTab.prototype.angular = function (module) {
   module.controller('ColdWalletCtrl', ['$rootScope', '$routeParams', '$location', '$route', 'rpId', 'rpNetwork',
-  function ($scope, $routeParams, $location, $route, id, network) {
+  function ($scope, $routeParams, $location, $route, id, $net) {
     $scope.sequenceNumber = 1;
     $scope.accountError = false;
 
@@ -75,18 +75,14 @@ ColdWalletTab.prototype.angular = function (module) {
     var address = $routeParams.address;
     $scope.address = address;
 
-    async function getFee() {
-      $scope.networkFee = await network.remote.getFee();
-    }
-
     // If we are online, fetch account info
-    var watcher = $scope.$watch('connected', function() {
+    var watcher = $scope.$watch('connected', async function() {
       if (!$scope.connected) return;
 
-      getFee();
+      $scope.networkFee = await $net.api.getFee();
 
-      var account = network.remote.account(address);
-      var server = network.remote._getServer();
+      var account = $net.remote.account(address);
+      var server = $net.remote._getServer();
 
       account.entry(function(err, entry) {
         $scope.accountLoaded = true;
@@ -125,7 +121,7 @@ ColdWalletTab.prototype.angular = function (module) {
           $scope.accountInfo = accountInfo;
         });
 
-        network.remote.requestAccountInfo({account: address})
+        $net.remote.requestAccountInfo({account: address})
           .on('success', function(info) {
             $scope.$apply(function() {
               $scope.regularKeyEnabled = info.account_data.RegularKey ? 'Yes' : 'No';
@@ -140,7 +136,7 @@ ColdWalletTab.prototype.angular = function (module) {
           }).request();
 
         // Fetch account trustlines and determine if any should have a warning
-        network.remote.requestAccountLines({account: address})
+        $net.remote.requestAccountLines({account: address})
           .on('success', function(lines) {
             $scope.$apply(function() {
               $scope.lines = lines.lines;
