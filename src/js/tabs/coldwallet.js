@@ -121,19 +121,26 @@ ColdWalletTab.prototype.angular = function (module) {
           $scope.accountInfo = accountInfo;
         });
 
-        $network.remote.requestAccountInfo({account: address})
-          .on('success', function(info) {
-            $scope.$apply(function() {
-              $scope.regularKeyEnabled = info.account_data.RegularKey ? 'Yes' : 'No';
-              $scope.xrpBalance = info.account_data.Balance / 1000000;
+        $network.api.getSettings(address).then(settings => {
+          $scope.$apply(function() {
+            $scope.regularKeyEnabled = settings.RegularKey ? 'Yes' : 'No';
+          });
+        }).catch(function(error) {
+          console.log('Error getSettings: ', error);
+        });
 
-              // To calcute the XRP reserve and available balance
-              var ownerCount  = info.account_data.OwnerCount || 0;
-              $scope.reserve = server._reserve(ownerCount);
-              var bal = ripple.Amount.from_json(info.account_data.Balance);
-              $scope.max_spend = bal.subtract($scope.reserve);
-            });
-          }).request();
+        $network.api.getAccountInfo(address).then(info => {
+          $scope.$apply(function() {
+            $scope.xrpBalance = info.xrpBalance;
+
+            var ownerCount  = info.ownerCount || 0;
+            // TODO(lezhang): Get reserve.
+            $scope.reserve = server._reserve(ownerCount);
+            $scope.max_spend = $scope.xrpBalance - $scope.reserve;
+          });
+        }).catch(function(error) {
+          console.log('Error getAccountInfo: ', error);
+        });
 
         // Fetch account trustlines and determine if any should have a warning
         $network.remote.requestAccountLines({account: address})

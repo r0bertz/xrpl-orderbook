@@ -153,22 +153,19 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
 
     // If user logs in with regular key wallet
     // check to see if wallet is still valid
-    remote.requestAccountInfo({
-      account: data.account
-    }, function(accountError, accountInfo) {
+    $network.api.getSettings(data.account).then(settings => {
       var invalidRegularWallet = false;
-      if (accountError) {
-        // Consider wallet valid
-        console.log('Error getting account data: ', accountError);
-      } else if ($scope.userBlob.data.regularKey && !$scope.userBlob.data.masterkey) {
+      if ($scope.userBlob.data.regularKey && !$scope.userBlob.data.masterkey) {
         // If we are using a regular wallet file (no masterkey)
         // check to see if regular key is valid
         var regularKeyPublic = new RippleAddress($scope.userBlob.data.regularKey).getAddress();
-        if (regularKeyPublic !== accountInfo.account_data.RegularKey) {
+        if (regularKeyPublic !== settings.RegularKey) {
           invalidRegularWallet = true;
         }
       }
       $scope.invalidRegularWallet = invalidRegularWallet;
+    }).catch(function(error) {
+        console.log('Error getSettings: ', error);
     });
 
     account = data.account;
