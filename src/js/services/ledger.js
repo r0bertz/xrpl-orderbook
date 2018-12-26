@@ -12,7 +12,7 @@ var module = angular.module('ledger', ['network', 'transactions']),
     ripple = require('ripple-lib');
 
 module.factory('rpLedger', ['$q', '$rootScope', 'rpNetwork', 'rpTransactions',
-                            function($q, $rootScope, net, transactions)
+                            function($q, $rootScope, $network, transactions)
 {
 
   var offerPromise = $q.defer();
@@ -112,11 +112,11 @@ module.factory('rpLedger', ['$q', '$rootScope', 'rpNetwork', 'rpTransactions',
     }
   }
 
-  if(net.connected) {
+  if($network.connected) {
     doRequest();
   }
 
-  net.on('connected', function(){
+  $network.on('connected', function(){
     doRequest();
   });
 
@@ -124,7 +124,7 @@ module.factory('rpLedger', ['$q', '$rootScope', 'rpNetwork', 'rpTransactions',
   {
     if (requested) return;
 
-    net.remote.requestLedger("ledger_closed", "full")
+    $network.remote.requestLedger("ledger_closed", "full")
         .on('success', handleLedger)
         .request();
 

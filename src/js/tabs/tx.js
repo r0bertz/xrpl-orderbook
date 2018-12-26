@@ -19,7 +19,7 @@ TxTab.prototype.generateHtml = function ()
 TxTab.prototype.angular = function (module)
 {
   module.controller('TxCtrl', ['$scope', 'rpNetwork', '$routeParams', 'rpId', '$location',
-                               function ($scope, net, $routeParams, $id, $location)
+                               function ($scope, $network, $routeParams, $id, $location)
   {
     $scope.logoutTx = function () {
       $id.logout();
@@ -35,7 +35,7 @@ TxTab.prototype.angular = function (module)
 
     function loadTx() {
       // XXX: Dirty, dirty. But it's going to change soon anyway.
-      var request = net.remote.request_ledger_hash();
+      var request = $network.remote.request_ledger_hash();
       request.message.command = 'tx';
       request.message.transaction = $routeParams.id;
       request.on('success', function (res) {
@@ -57,7 +57,7 @@ TxTab.prototype.angular = function (module)
       request.request();
     }
 
-    if (net.connected) loadTx();
+    if ($network.connected) loadTx();
     else var removeListener = $scope.$on('$netConnected', function () {
       removeListener();
       loadTx();

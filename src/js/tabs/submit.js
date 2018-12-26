@@ -26,9 +26,9 @@ SubmitTab.prototype.generateHtml = function ()
 SubmitTab.prototype.angular = function (module)
 {
   module.controller('SubmitCtrl', ['$scope', '$location', 'rpFileDialog', 'rpNW', 'rpNetwork',
-    function ($scope, $location, fileDialog, rpNW, $net)
+                                   function ($scope, $location, fileDialog, rpNW, $network)
     {
-      $net.connect();
+      $network.connect();
 
       $scope.txFiles = [];
       var preparedTxns = 0;

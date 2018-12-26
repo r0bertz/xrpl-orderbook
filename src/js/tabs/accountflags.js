@@ -112,7 +112,7 @@ AccountFlagsTab.prototype.angular = function(module) {
   }]);
 
   module.controller('FlagCtrl', ['$scope', '$timeout', 'rpId', 'rpNetwork', 'rpKeychain',
-    function($scope, $timeout, id, net, keychain) {
+                                 function($scope, $timeout, id, $network, keychain) {
       var flag = $scope.flag;
 
       $scope.save = function() {
@@ -120,7 +120,7 @@ AccountFlagsTab.prototype.angular = function(module) {
         if ($scope.opts.enabled !== $scope.opts.newEnabled) {
           $scope.opts.saving = true;
 
-          var tx = net.remote.transaction();
+          var tx = $network.remote.transaction();
           var action;
 
           if ($scope.opts.newEnabled) {
@@ -175,7 +175,7 @@ AccountFlagsTab.prototype.angular = function(module) {
           return;
         }
 
-        var tx = net.remote.transaction();
+        var tx = $network.remote.transaction();
 
         if (action === 'add') {
           tx.accountSet(id.account, setClearFlags[flag]);

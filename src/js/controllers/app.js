@@ -14,7 +14,7 @@ var module = angular.module('app', []);
 
 module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
                               'rpKeychain', '$route', '$timeout', 'rpFileDialog',
-                              function ($scope, $compile, $id, $net,
+                              function ($scope, $compile, $id, $network,
                                         keychain, $route, $timeout, fileDialog)
 {
   reset();
@@ -52,7 +52,7 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
   // Remember the onlineMode switch value and handle the connection
   $scope.switchOnlineMode = function(){
     $scope.onlineMode = !$scope.onlineMode;
-    $scope.onlineMode ? $net.connect() : $net.disconnect();
+    $scope.onlineMode ? $network.connect() : $network.disconnect();
     store.set('onlineMode', $scope.onlineMode);
   };
 
@@ -106,7 +106,7 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
   // Global reference for debugging only (!)
   if ("object" === typeof rippleclient) {
     rippleclient.id = $id;
-    rippleclient.net = $net;
+    rippleclient.network = $network;
     rippleclient.keychain = keychain;
   }
 
@@ -149,7 +149,7 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
 
   function handleAccountLoad(e, data)
   {
-    var remote = $net.remote;
+    var remote = $network.remote;
 
     // If user logs in with regular key wallet
     // check to see if wallet is still valid
@@ -223,7 +223,7 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
   function handleAccountUnload(e, data)
   {
     if (myHandleAccountEvent && myHandleAccountEntry) {
-      var remote = $net.remote;
+      var remote = $network.remote;
       var accountObj = remote.account(data.account);
       accountObj.removeListener('transaction', myHandleAccountEvent);
       accountObj.removeListener('entry', myHandleAccountEntry);
@@ -293,7 +293,7 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
 
   function handleAccountEntry(data)
   {
-    var remote = $net.remote;
+    var remote = $network.remote;
 
     // Only overwrite account data if the new data has a bigger sequence number (is a newer information)
     if ($scope.account && $scope.account.Sequence && $scope.account.Sequence >= data.Sequence) {
@@ -663,10 +663,10 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
     removeFirstConnectionListener();
   }
 
-  $net.listenId($id);
+  $network.listenId($id);
   $id.init();
 
-  $scope.onlineMode ? $net.connect() : $net.disconnect();
+  $scope.onlineMode ? $network.connect() : $network.disconnect();
 
   // Reconnect on server setting changes
   var netConnectedListener = function(){};
@@ -674,8 +674,8 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
     if ($scope.onlineMode) {
       var address = $scope.address;
 
-      $net.disconnect();
-      $net.connect(serverSettings);
+      $network.disconnect();
+      $network.connect(serverSettings);
 
       // Remove listener
       netConnectedListener();

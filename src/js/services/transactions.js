@@ -11,13 +11,13 @@
 var module = angular.module('transactions', ['network']);
 
 module.factory('rpTransactions', ['$rootScope', 'rpNetwork',
-                                  function($scope, net) {
+                                  function($scope, $network) {
   var listeners = [],
       subscribed = false;
 
   function subscribe() {
     if (subscribed) return;
-    net.remote.requestSubscribe("transactions").request();
+    $network.remote.requestSubscribe("transactions").request();
     subscribed = true;
   }
 
@@ -29,7 +29,7 @@ module.factory('rpTransactions', ['$rootScope', 'rpNetwork',
     });
   }
 
-  net.remote.on('net_transaction', handleTransaction);
+  $network.remote.on('net_transaction', handleTransaction);
 
   return {
     addListener: function (fn) {

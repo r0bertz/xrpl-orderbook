@@ -9,12 +9,12 @@ var module = angular.module('books', ['network']),
 
 
 module.factory('rpBooks', ['rpNetwork', '$q', '$rootScope', '$filter', 'rpId',
-function(net, $q, $scope, $filter, $id) {
+                           function($network, $q, $scope, $filter, $id) {
 
   var rowCount;
 
   function loadBook(gets, pays) {
-    return net.remote.book({
+    return $network.remote.book({
       currency_gets: gets.currency,
       issuer_gets: gets.issuer,
       currency_pays: pays.currency,
