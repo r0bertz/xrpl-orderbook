@@ -196,9 +196,9 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
     });
 
     // Ripple credit lines
-    remote.requestAccountLines({account: data.account})
-      .on('success', handleRippleLines)
-      .on('error', handleRippleLinesError).request();
+    $network.api.request('account_lines', {account: data.account})
+      .then(handleRippleLines)
+      .catch(handelRippleLinesError);
 
     // Transactions
     remote.requestAccountTransactions({

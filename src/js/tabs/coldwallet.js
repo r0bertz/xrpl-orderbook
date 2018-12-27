@@ -143,8 +143,8 @@ ColdWalletTab.prototype.angular = function (module) {
         });
 
         // Fetch account trustlines and determine if any should have a warning
-        $network.remote.requestAccountLines({account: address})
-          .on('success', function(lines) {
+        $network.api.request('account_lines', {account: address})
+          .then(lines => {
             $scope.$apply(function() {
               $scope.lines = lines.lines;
               // Display any trustlines where the flag does not match the
@@ -159,7 +159,7 @@ ColdWalletTab.prototype.angular = function (module) {
                   warning2 += 'Trust line must be authorized.';
                 }
                 line.warning1 = warning1;
-                line.warning2 =warning2;
+                line.warning2 = warning2;
                 // Convert to boolean so undefined displays as false
                 line.no_ripple = !!line.no_ripple;
                 line.authorized = !!line.authorized;
@@ -169,7 +169,10 @@ ColdWalletTab.prototype.angular = function (module) {
                 return result;
               }, []);
             });
-          }).request();
+          })
+          .catch(function(error) {
+            console.log("Error request 'account_lines': ", error);
+          });
 
         // If we have a sequence number from the network, display to user
         $scope.sequenceNumber = entry.account_data.Sequence;
