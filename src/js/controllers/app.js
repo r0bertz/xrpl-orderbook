@@ -212,9 +212,9 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
       .on('error', handleAccountTxError).request();
 
     // Outstanding offers
-    remote.requestAccountOffers({ account: data.account})
-      .on('success', handleOffers)
-      .on('error', handleOffersError).request();
+    $network.api.request('account_offers', {account: data.account})
+      .then(handleOffers)
+      .catch(handleOffersError);
   }
 
   function handleAccountUnload(e, data)
