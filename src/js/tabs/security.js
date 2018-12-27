@@ -2,7 +2,6 @@ var util = require('util'),
     Tab  = require('../client/tab').Tab,
     Base58Utils = require('../util/base58'),
     RippleAddress = require('../util/types').RippleAddress,
-    ripple = require('ripple-lib'),
     fs = require('fs');
 
 var SecurityTab = function ()
@@ -56,7 +55,7 @@ SecurityTab.prototype.angular = function (module) {
       tx.tx_json.Sequence = Number($scope.sequence);
       $scope.incrementSequence();
       // Fee must be converted to drops
-      tx.tx_json.Fee = ripple.Amount.from_json(Options.max_tx_network_fee).to_human() * 1000000;
+      tx.tx_json.Fee = deprecated.Amount.from_json(Options.max_tx_network_fee).to_human() * 1000000;
       tx.complete();
       $scope.signedTransaction = tx.sign().serialize().to_hex();
       $scope.txJSON = JSON.stringify(tx.tx_json);

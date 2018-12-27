@@ -4,7 +4,6 @@ var settings = require('../util/settings');
 var Tab = require('../client/tab').Tab;
 var rewriter = require('../util/jsonrewriter');
 var gateways = require('../../../deps/gateways.json');
-var ripple = require('ripple-lib');
 
 var TradeTab = function ()
 {
@@ -481,7 +480,7 @@ TradeTab.prototype.angular = function(module)
       var first_currency = $scope.order.first_currency || Currency.from_json("XRP");
       var formatted = "" + order.first + " " + (first_currency.has_interest() ? first_currency.to_hex() : first_currency.get_iso());
 
-      order.first_amount = ripple.Amount.from_human(formatted, {reference_date: new Date(+new Date() + 5*60000)});
+      order.first_amount = deprecated.Amount.from_human(formatted, {reference_date: new Date(+new Date() + 5*60000)});
 
       if (!first_currency.is_native()) order.first_amount.set_issuer($scope.order.first_issuer);
     };
@@ -491,7 +490,7 @@ TradeTab.prototype.angular = function(module)
       var second_currency = $scope.order.second_currency || Currency.from_json("XRP");
       var formatted = "" + order.price + " " + (second_currency.has_interest() ? second_currency.to_hex() : second_currency.get_iso());
 
-      order.price_amount = ripple.Amount.from_human(formatted, {reference_date: new Date(+new Date() + 5*60000)});
+      order.price_amount = deprecated.Amount.from_human(formatted, {reference_date: new Date(+new Date() + 5*60000)});
 
       if (!second_currency.is_native()) order.price_amount.set_issuer($scope.order.second_issuer);
     };
@@ -501,7 +500,7 @@ TradeTab.prototype.angular = function(module)
       var second_currency = $scope.order.second_currency || Currency.from_json("XRP");
       var formatted = "" + order.second + " " + (second_currency.has_interest() ? second_currency.to_hex() : second_currency.get_iso());
 
-      order.second_amount = ripple.Amount.from_human(formatted, {reference_date: new Date(+new Date() + 5*60000)});
+      order.second_amount = deprecated.Amount.from_human(formatted, {reference_date: new Date(+new Date() + 5*60000)});
 
       if (!second_currency.is_native()) order.second_amount.set_issuer($scope.order.second_issuer);
     };
@@ -571,9 +570,9 @@ TradeTab.prototype.angular = function(module)
           var issuer = order.price_amount.issuer();
 
           // use replace(/,/g,'') until ripple lib fixed
-          order.first_amount = Amount.from_json(order.second_amount.to_text_full().replace(/,/g, '')).ratio_human(Amount.from_json(price + '/' + currency + '/' + issuer), {reference_date: new Date()});
+          order.first_amount = deprecated.Amount.from_json(order.second_amount.to_text_full().replace(/,/g, '')).ratio_human(deprecated.Amount.from_json(price + '/' + currency + '/' + issuer), {reference_date: new Date()});
         } else {
-          order.first_amount = Amount.from_json(order.second_amount.to_text_full().replace(/,/g, '')).ratio_human(Amount.from_json(order.price_amount.to_text()), {reference_date: new Date()});
+          order.first_amount = deprecated.Amount.from_json(order.second_amount.to_text_full().replace(/,/g, '')).ratio_human(deprecated.Amount.from_json(order.price_amount.to_text()), {reference_date: new Date()});
         }
         order.first = order.first_amount.to_human({group_sep: false});
       }
@@ -663,8 +662,8 @@ TradeTab.prototype.angular = function(module)
       }
 
 
-      var first_currency = order.first_currency = ripple.Currency.from_json(pair[0].substring(0,3));
-      var second_currency = order.second_currency = ripple.Currency.from_json(pair[1].substring(0,3));
+      var first_currency = order.first_currency = deprecated.Currency.from_json(pair[0].substring(0,3));
+      var second_currency = order.second_currency = deprecated.Currency.from_json(pair[1].substring(0,3));
 
       if(first_currency.is_native()) {
         order.first_issuer = '';

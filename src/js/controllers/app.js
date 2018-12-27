@@ -6,7 +6,6 @@
 
 var rewriter = require('../util/jsonrewriter'),
   genericUtils = require('../util/generic'),
-  ripple = require('ripple-lib'),
   RippleAddress = require('../util/types').RippleAddress,
   fs = require('fs');
 
@@ -237,9 +236,9 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
         // XXX: This reinterpretation of the server response should be in the
         //      library upstream.
         line = $.extend({}, line, {
-          limit: ripple.Amount.from_json({value: line.limit, currency: line.currency, issuer: line.account}),
-          limit_peer: ripple.Amount.from_json({value: line.limit_peer, currency: line.currency, issuer: account}),
-          balance: ripple.Amount.from_json({value: line.balance, currency: line.currency, issuer: account})
+          limit: deprecated.Amount.from_json({value: line.limit, currency: line.currency, issuer: line.account}),
+          limit_peer: deprecated.Amount.from_json({value: line.limit_peer, currency: line.currency, issuer: account}),
+          balance: deprecated.Amount.from_json({value: line.balance, currency: line.currency, issuer: account})
         });
 
         $scope.lines[line.account+line.currency] = line;
@@ -266,8 +265,8 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
       data.offers.forEach(function (offerData) {
         var offer = {
           seq: +offerData.seq,
-          gets: ripple.Amount.from_json(offerData.taker_gets),
-          pays: ripple.Amount.from_json(offerData.taker_pays),
+          gets: deprecated.Amount.from_json(offerData.taker_gets),
+          pays: deprecated.Amount.from_json(offerData.taker_pays),
           flags: offerData.flags
         };
 
@@ -311,7 +310,7 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
     $scope.account.reserve_low_balance = $scope.account.reserve.product_human(2);
 
     // Maximum amount user can spend
-    var bal = Amount.from_json(data.Balance);
+    var bal = deprecated.Amount.from_json(data.Balance);
     $scope.account.max_spend = bal.subtract($scope.account.reserve);
 
     $scope.loadState['account'] = true;
@@ -455,7 +454,7 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
 
   function updateOffer(offer)
   {
-    if (offer.flags && offer.flags === ripple.Remote.flags.offer.Sell) {
+    if (offer.flags && offer.flags === deprecated.Remote.flags.offer.Sell) {
       offer.type = 'sell';
       offer.first = offer.gets;
       offer.second = offer.pays;

@@ -1,7 +1,6 @@
 var util = require('util'),
     webutil = require('../util/web'),
-    Tab = require('../client/tab').Tab,
-    ripple = require('ripple-lib');
+    Tab = require('../client/tab').Tab;
 
 var AdvancedTab = function ()
 {
@@ -29,7 +28,7 @@ AdvancedTab.prototype.angular = function(module)
     }
     // XRP currency object.
     // {name: "XRP - Ripples", order: 146, value: "XRP"}
-    var xrpCurrency = ripple.Currency.from_json("XRP");
+    var xrpCurrency = deprecated.Currency.from_json("XRP");
 
     $scope.xrp = {
       name: xrpCurrency.to_human({full_name:$scope.currencies_all_keyed.XRP.name}),
@@ -42,7 +41,7 @@ AdvancedTab.prototype.angular = function(module)
     $scope.editBlob = false;
     $scope.editMaxNetworkFee = false;
     $scope.editAcctOptions = false;
-    $scope.max_tx_network_fee_human = ripple.Amount.from_json($scope.options.max_tx_network_fee).to_human();
+    $scope.max_tx_network_fee_human = deprecated.Amount.from_json($scope.options.max_tx_network_fee).to_human();
 
     $scope.saveSetings = function() {
       // Save in local storage
@@ -65,7 +64,7 @@ AdvancedTab.prototype.angular = function(module)
     $scope.saveMaxNetworkFee = function () {
       // Save in local storage
       if (!store.disabled) {
-        $scope.options.max_tx_network_fee = ripple.Amount.from_human($scope.max_tx_network_fee_human).to_json();
+        $scope.options.max_tx_network_fee = deprecated.Amount.from_human($scope.max_tx_network_fee_human).to_json();
         store.set('ripple_settings', angular.toJson($scope.options));
       }
 

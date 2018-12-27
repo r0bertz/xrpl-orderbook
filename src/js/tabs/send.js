@@ -1,7 +1,6 @@
 var util = require('util'),
     webutil = require('../util/web'),
     Tab = require('../client/tab').Tab,
-    ripple = require('ripple-lib'),
     fs = require('fs');    
 
 var SendTab = function ()
@@ -34,7 +33,7 @@ SendTab.prototype.angular = function (module)
 
     // XRP currency object.
     // {name: "XRP - Ripples", order: 146, value: "XRP"}
-    var xrpCurrency = ripple.Currency.from_json("XRP");
+    var xrpCurrency = deprecated.Currency.from_json("XRP");
 
     $scope.xrp = {
       name: xrpCurrency.to_human({full_name:$scope.currencies_all_keyed["XRP"].name}),
@@ -70,7 +69,7 @@ SendTab.prototype.angular = function (module)
     }, true);
 
     $scope.$watch('send.currency', function () {
-      var currency = ripple.Currency.from_json($scope.send.currency);
+      var currency = deprecated.Currency.from_json($scope.send.currency);
       if ($scope.send.currency !== '' && currency.is_valid()) {
         $scope.send.currency_code = currency.to_human().toUpperCase();
       } else {
@@ -208,8 +207,8 @@ SendTab.prototype.angular = function (module)
               'Balance': data.account_data.Balance,
 
               // Flags
-              'disallow_xrp': data.account_data.Flags & ripple.Remote.flags.account_root.DisallowXRP,
-              'dest_tag_required': data.account_data.Flags & ripple.Remote.flags.account_root.RequireDestTag
+              'disallow_xrp': data.account_data.Flags & deprecated.Remote.flags.account_root.DisallowXRP,
+              'dest_tag_required': data.account_data.Flags & deprecated.Remote.flags.account_root.RequireDestTag
             };
 
             // Check destination tag visibility
@@ -305,7 +304,7 @@ SendTab.prototype.angular = function (module)
         // create the display version of the currencies
         currencies = _.map(currencies, function (currency) {
          // create a currency object for each of the currency codes
-          var currencyObj = ripple.Currency.from_json(currency);
+          var currencyObj = deprecated.Currency.from_json(currency);
           if ($scope.currencies_all_keyed[currencyObj.get_iso()]) {
             return currencyObj.to_human({full_name:$scope.currencies_all_keyed[currencyObj.get_iso()].name});
           } else {
@@ -377,7 +376,7 @@ SendTab.prototype.angular = function (module)
         return;
       }
 
-      var currency = ripple.Currency.from_human(send.currency);
+      var currency = deprecated.Currency.from_human(send.currency);
       var matchedCurrency = currency.has_interest() ? currency.to_hex() : currency.get_iso();
       var match = /^([a-zA-Z0-9]{3}|[A-Fa-f0-9]{40})\b/.exec(matchedCurrency);
 
@@ -398,7 +397,7 @@ SendTab.prototype.angular = function (module)
       // this actually *causes* the same odd rounding problem, so in the future
       // we'll want a better solution, but for right now this does what we need.
       var refDate = new Date(new Date().getTime() + 5 * 60000);
-      var amount = send.amount_feedback = ripple.Amount.from_human('' + send.amount + ' ' + matchedCurrency, { reference_date: refDate });
+      var amount = send.amount_feedback = deprecated.Amount.from_human('' + send.amount + ' ' + matchedCurrency, { reference_date: refDate });
 
       $scope.reset_amount_deps();
       send.path_status = 'waiting';
@@ -419,7 +418,7 @@ SendTab.prototype.angular = function (module)
         send.amount_feedback.set_issuer(1);
         pathUpdateTimeout = $timeout($scope.update_quote, 500);
       } else {
-        if (!RippleAddressCodec.isValidAddress(recipient) || !ripple.Amount.is_valid(amount)) {
+        if (!RippleAddressCodec.isValidAddress(recipient) || !deprecated.Amount.is_valid(amount)) {
           // XXX Error?
           return;
         }
@@ -535,7 +534,7 @@ SendTab.prototype.angular = function (module)
             $scope.send.alternatives = _.map(upd.alternatives, function (raw, key) {
               var alt = {};
 
-              alt.amount = ripple.Amount.from_json(raw.source_amount);
+              alt.amount = deprecated.Amount.from_json(raw.source_amount);
 
               // Compensate for demurrage
               //
@@ -597,7 +596,7 @@ SendTab.prototype.angular = function (module)
         recipient_prev: '',
         recipient_info: {},
         amount: '',
-        amount_prev: new ripple.Amount(),
+        amount_prev: new deprecated.Amount(),
         currency: $scope.xrp.name,
         currency_choices: [],
         currency_code: "XRP",
@@ -802,7 +801,7 @@ SendTab.prototype.angular = function (module)
         tx.tx_json.Sequence = Number($scope.sequence);
         $scope.incrementSequence();
         // Fee must be converted to drops
-        tx.tx_json.Fee = ripple.Amount.from_json(Options.max_tx_network_fee).to_human() * 1000000;
+        tx.tx_json.Fee = deprecated.Amount.from_json(Options.max_tx_network_fee).to_human() * 1000000;
         tx.complete();
         $scope.signedTransaction = tx.sign().serialize().to_hex();
         $scope.txJSON = JSON.stringify(tx.tx_json);
@@ -899,7 +898,7 @@ SendTab.prototype.angular = function (module)
       if (amountValue === ("" + parseInt(amountValue, 10))) {
         amountValue = amountValue + '.0';
       }
-      var amount = ripple.Amount.from_json(amountValue);
+      var amount = deprecated.Amount.from_json(amountValue);
       var currency = amount.currency();
       if ($scope.currencies_all_keyed[currency.get_iso()]) {
         $scope.send.currency_choices = [currency.to_human({full_name:$scope.currencies_all_keyed[currency.get_iso()].name})];

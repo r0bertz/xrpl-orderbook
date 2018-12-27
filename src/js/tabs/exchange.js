@@ -1,9 +1,6 @@
 var util = require('util'),
     webutil = require('../util/web'),
-    Tab = require('../client/tab').Tab,
-    ripple = require('ripple-lib'),
-    Amount = ripple.Amount,
-    Currency = ripple.Currency;
+    Tab = require('../client/tab').Tab;
 
 var ExchangeTab = function ()
 {
@@ -64,7 +61,7 @@ ExchangeTab.prototype.angular = function (module)
       // Remember user preference on Convert vs. Trade
       $rootScope.ripple_exchange_selection_trade = false;
 
-      var xrpCurrency = Currency.from_json("XRP");
+      var xrpCurrency = deprecated.Currency.from_json("XRP");
 
       $scope.xrp = {
         name: xrpCurrency.to_human({full_name:$scope.currencies_all_keyed["XRP"].name}),
@@ -78,7 +75,7 @@ ExchangeTab.prototype.angular = function (module)
 
       $scope.$watch('exchange.currency_name', function () {
         var exchange = $scope.exchange;
-        var currency = Currency.from_human($scope.exchange.currency_name ? $scope.exchange.currency_name : "XRP");
+        var currency = deprecated.Currency.from_human($scope.exchange.currency_name ? $scope.exchange.currency_name : "XRP");
         exchange.currency_obj = currency;
         exchange.currency_code = currency.get_iso();
         exchange.currency_name = currency.to_human({
@@ -98,7 +95,7 @@ ExchangeTab.prototype.angular = function (module)
       var pathUpdateTimeout;
       $scope.update_exchange = function () {
         var exchange = $scope.exchange;
-        var currency = Currency.from_human(exchange.currency_name);
+        var currency = deprecated.Currency.from_human(exchange.currency_name);
 
         $scope.reset_paths();
 
@@ -134,7 +131,7 @@ ExchangeTab.prototype.angular = function (module)
         // we'll want a better solution, but for right now this does what we need.
         var refDate = new Date(new Date().getTime() + 5 * 60000);
 
-        exchange.amount_feedback = Amount.from_human('' + exchange.amount + ' ' + matchedCurrency, { reference_date: refDate });
+        exchange.amount_feedback = deprecated.Amount.from_human('' + exchange.amount + ' ' + matchedCurrency, { reference_date: refDate });
         exchange.amount_feedback.set_issuer($id.account);
 
         if (exchange.amount_feedback.is_valid() && exchange.amount_feedback.is_positive()) {
@@ -193,7 +190,7 @@ ExchangeTab.prototype.angular = function (module)
                 $scope.exchange.alternatives = _.filter(_.map(upd.alternatives, function (raw) {
                   var alt = {};
 
-                  alt.amount = Amount.from_json(raw.source_amount);
+                  alt.amount = deprecated.Amount.from_json(raw.source_amount);
 
                   alt.rate = alt.amount.ratio_human(amount);
 
@@ -231,7 +228,7 @@ ExchangeTab.prototype.angular = function (module)
 
         // create a currency object for each of the currency codes
         for (var i=0; i < currencies.length; i++) {
-          currencies[i] = Currency.from_json(currencies[i]);
+          currencies[i] = deprecated.Currency.from_json(currencies[i]);
         }
 
         // create the display version of the currencies
@@ -301,9 +298,9 @@ ExchangeTab.prototype.angular = function (module)
       $scope.exchange_confirmed = function () {
 
         // parse the currency name and extract the iso
-        var currency = Currency.from_human($scope.exchange.currency_name);
+        var currency = deprecated.Currency.from_human($scope.exchange.currency_name);
         currency = currency.has_interest() ? currency.to_hex() : currency.get_iso();
-        var amount = Amount.from_human('' + $scope.exchange.amount + ' ' + currency);
+        var amount = deprecated.Amount.from_human('' + $scope.exchange.amount + ' ' + currency);
 
         amount.set_issuer($id.account);
 

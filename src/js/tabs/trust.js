@@ -1,7 +1,6 @@
 var util = require('util'),
     webutil = require('../util/web'),
     Tab = require('../client/tab').Tab,
-    ripple = require('ripple-lib'),
     fs = require('fs');
 
 var TrustTab = function ()
@@ -143,7 +142,7 @@ TrustTab.prototype.angular = function (module) {
           // hide throbber
           $scope.verifying = false;
 
-          $scope.lineCurrencyObj = ripple.Currency.from_human($scope.currency);
+          $scope.lineCurrencyObj = deprecated.Currency.from_human($scope.currency);
           var matchedCurrency = $scope.lineCurrencyObj.has_interest() ? $scope.lineCurrencyObj.to_hex() : $scope.lineCurrencyObj.get_iso();
           var match = /^([a-zA-Z0-9]{3}|[A-Fa-f0-9]{40})\b/.exec(matchedCurrency);
 
@@ -155,11 +154,11 @@ TrustTab.prototype.angular = function (module) {
           }
 
           if ($scope.amount === '') {
-            // $scope.amount = Number(ripple.Amount.consts.max_value);
+            // $scope.amount = Number(deprecated.Amount.consts.max_value);
             $scope.amount = Options.gateway_max_limit;
           }
 
-          var amount = ripple.Amount.from_human('' + $scope.amount + ' ' + $scope.lineCurrencyObj.to_hex(), {reference_date: new Date(+new Date() + 5 * 60000)});
+          var amount = deprecated.Amount.from_human('' + $scope.amount + ' ' + $scope.lineCurrencyObj.to_hex(), {reference_date: new Date(+new Date() + 5 * 60000)});
 
           amount.set_issuer($scope.counterparty_address);
           if (!amount.is_valid()) {
@@ -261,7 +260,7 @@ TrustTab.prototype.angular = function (module) {
             tx.tx_json.Sequence = Number($scope.sequence);
             $scope.incrementSequence();
             // Fee must be converted to drops
-            tx.tx_json.Fee = ripple.Amount.from_json(Options.max_tx_network_fee).to_human() * 1000000;
+            tx.tx_json.Fee = deprecated.Amount.from_json(Options.max_tx_network_fee).to_human() * 1000000;
             tx.complete();
             try {
               $scope.signedTransaction = tx.sign().serialize().to_hex();
@@ -398,7 +397,7 @@ TrustTab.prototype.angular = function (module) {
         $scope.trust.balance = String($scope.component.balance.to_json().value);
         $scope.trust.balanceAmount = $scope.component.balance;
 
-        var currency = ripple.Currency.from_human($scope.component.currency);
+        var currency = deprecated.Currency.from_human($scope.component.currency);
 
         if (currency.to_human({full_name: $scope.currencies_all_keyed[currency.get_iso()]})) {
           $scope.trust.currency = currency.to_human({
@@ -453,7 +452,7 @@ TrustTab.prototype.angular = function (module) {
               tx.tx_json.Sequence = Number($scope.sequence);
               $scope.incrementSequence();
               // Fee must be converted to drops
-              tx.tx_json.Fee = ripple.Amount.from_json(Options.max_tx_network_fee).to_human() * 1000000;
+              tx.tx_json.Fee = deprecated.Amount.from_json(Options.max_tx_network_fee).to_human() * 1000000;
               tx.complete();
               try {
                 $scope.signedTransaction = tx.sign().serialize().to_hex();
@@ -580,7 +579,7 @@ TrustTab.prototype.angular = function (module) {
 
         $scope.load_notification('loading');
 
-        var amount = ripple.Amount.from_human(
+        var amount = deprecated.Amount.from_human(
           $scope.trust.limit + ' ' + $scope.component.currency,
           {reference_date: new Date(+new Date() + 5*60000)}
         );
@@ -685,7 +684,7 @@ TrustTab.prototype.angular = function (module) {
             tx.tx_json.Sequence = Number($scope.sequence);
             $scope.incrementSequence();
             // Fee must be converted to drops
-            tx.tx_json.Fee = ripple.Amount.from_json(Options.max_tx_network_fee).to_human() * 1000000;
+            tx.tx_json.Fee = deprecated.Amount.from_json(Options.max_tx_network_fee).to_human() * 1000000;
             tx.complete();
             try {
               $scope.signedTransaction = tx.sign().serialize().to_hex();

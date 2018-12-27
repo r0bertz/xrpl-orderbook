@@ -4,8 +4,7 @@
  * The books service is used to keep track of orderbooks.
  */
 
-var module = angular.module('books', ['network']),
-    Amount = require('ripple-lib').Amount;
+var module = angular.module('books', ['network']);
 
 
 module.factory('rpBooks', ['rpNetwork', '$q', '$rootScope', '$filter', 'rpId',
@@ -56,8 +55,8 @@ module.factory('rpBooks', ['rpNetwork', '$q', '$rootScope', '$filter', 'rpId',
         d.TakerPays = parseInt(Number(d.taker_pays_funded), 10);
       }
 
-      d.TakerGets = Amount.from_json(d.TakerGets);
-      d.TakerPays = Amount.from_json(d.TakerPays);
+      d.TakerGets = deprecated.Amount.from_json(d.TakerGets);
+      d.TakerPays = deprecated.Amount.from_json(d.TakerPays);
 
       // You never know
       if (!d.TakerGets.is_valid() || !d.TakerPays.is_valid()) {
@@ -65,15 +64,13 @@ module.factory('rpBooks', ['rpNetwork', '$q', '$rootScope', '$filter', 'rpId',
       }
 
       if (action === 'asks') {
-        d.price = Amount.
-          from_quality(d.BookDirectory, d.TakerPays.currency(),
+        d.price = deprecated.Amount.from_quality(d.BookDirectory, d.TakerPays.currency(),
           d.TakerPays.issuer(), {
             base_currency: d.TakerGets.currency(),
             reference_date: new Date()
           });
       } else {
-        d.price = Amount.
-          from_quality(d.BookDirectory, d.TakerGets.currency(),
+        d.price = deprecated.Amount.from_quality(d.BookDirectory, d.TakerGets.currency(),
           d.TakerGets.issuer(), {
             inverse: true,
             base_currency: d.TakerPays.currency(),
@@ -93,8 +90,8 @@ module.factory('rpBooks', ['rpNetwork', '$q', '$rootScope', '$filter', 'rpId',
 
       if (lastprice === price && !d.my) {
         if (combine) {
-          newData[current].TakerPays = Amount.from_json(newData[current].TakerPays).add(d.TakerPays);
-          newData[current].TakerGets = Amount.from_json(newData[current].TakerGets).add(d.TakerGets);
+          newData[current].TakerPays = deprecated.Amount.from_json(newData[current].TakerPays).add(d.TakerPays);
+          newData[current].TakerGets = deprecated.Amount.from_json(newData[current].TakerGets).add(d.TakerGets);
         }
         d = false;
       } else {

@@ -6,7 +6,6 @@ var fs = require('fs');
 var _ = require('lodash');
 var PriorityQueue = require('priorityqueuejs');
 var async = require('async');
-var ripple = require('ripple-lib');
 
 var SubmitTab = function ()
 {
@@ -229,7 +228,7 @@ SubmitTab.prototype.angular = function (module)
         // This row is next in queue, submit transaction
         if ($scope.txFile.path === $scope.queue.peek().file) {
           var blob = $scope.queue.deq().blob;
-          var request = new ripple.Request(network.remote, 'submit');
+          var request = new deprecated.Request(network.remote, 'submit');
           request.message.tx_blob = blob;
           request.callback(function(submitErr, response) {
             $scope.$apply(function() {

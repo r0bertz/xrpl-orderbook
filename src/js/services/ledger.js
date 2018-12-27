@@ -8,8 +8,7 @@
  * else) to come up with something better.
  */
 
-var module = angular.module('ledger', ['network', 'transactions']),
-    ripple = require('ripple-lib');
+var module = angular.module('ledger', ['network', 'transactions']);
 
 module.factory('rpLedger', ['$q', '$rootScope', 'rpNetwork', 'rpTransactions',
                             function($q, $rootScope, $network, transactions)
@@ -85,7 +84,7 @@ module.factory('rpLedger', ['$q', '$rootScope', 'rpNetwork', 'rpTransactions',
   }
 
   function rewriteAmount(amountJson) {
-    var amount = ripple.Amount.from_json(amountJson);
+    var amount = deprecated.Amount.from_json(amountJson);
     return {
       amount: amount,
       // Pretty dirty hack, but to_text for native values gives 1m * value...

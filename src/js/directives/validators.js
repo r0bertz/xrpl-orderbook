@@ -4,11 +4,7 @@
  * Form validation directives go into this file.
  */
 
-var webutil = require('../util/web'),
-    ripple = require('ripple-lib'),
-    Base = ripple.Base,
-    Amount = ripple.Amount,
-    Currency = ripple.Currency;
+var webutil = require('../util/web');
 
 var module = angular.module('validators', []);
 
@@ -23,7 +19,7 @@ module.directive('rpMasterKey', function () {
       if (!ctrl) return;
 
       var validator = function(value) {
-        if (value && !Base.decode_check(33, value)) {
+        if (value && !deprecated.Base.decode_check(33, value)) {
           ctrl.$setValidity('rpMasterKey', false);
           return;
         }
@@ -535,7 +531,7 @@ module.directive('rpAmountXrpLimit', function () {
 
       // We don't use parseAmount here, assuming that you also use rpAmount validator
       var validator = function(value) {
-        var currency = Currency.from_json(attr.rpAmountXrpLimitCurrency);
+        var currency = deprecated.Currency.from_json(attr.rpAmountXrpLimitCurrency);
 
         // If XRP, ensure amount is less than 100 billion and is at least one drop
         if (currency.is_valid() && currency.is_native()) {

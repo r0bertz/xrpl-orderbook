@@ -1,6 +1,5 @@
 var util = require('util'),
-    Tab = require('../client/tab').Tab,
-    ripple = require('ripple-lib');
+    Tab = require('../client/tab').Tab;
 
 var AccountFlagsTab = function() {
   Tab.call(this);
@@ -187,7 +186,7 @@ AccountFlagsTab.prototype.angular = function(module) {
         $scope.incrementSequence();
 
         // Fee must be converted to drops
-        tx.tx_json.Fee = ripple.Amount.from_json(Options.max_tx_network_fee).to_human() * 1000000;
+        tx.tx_json.Fee = deprecated.Amount.from_json(Options.max_tx_network_fee).to_human() * 1000000;
         keychain.requestSecret(id.account, id.username, function(err, secret) {
           if (err) {
             console.warn(err);

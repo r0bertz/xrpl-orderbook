@@ -4,8 +4,7 @@
  * Miscellaneous directives go in this file.
  */
 
-var module = angular.module('directives', ['popup']),
-    ripple = require('ripple-lib');
+var module = angular.module('directives', ['popup']);
 
 /**
  * Inline edit
@@ -307,7 +306,7 @@ module.directive('rpAutofill', ['$parse', function($parse) {
             };
 
             // Is it an amount?
-            var amount = ripple.Amount.from_json(value);
+            var amount = deprecated.Amount.from_json(value);
             if (amount.is_valid()) {
               if (attr.rpAutofillAmount) {
                 value = amount.to_human({
@@ -319,7 +318,7 @@ module.directive('rpAutofill', ['$parse', function($parse) {
             }
             // Maybe a currency?
             else {
-              var currency = ripple.Currency.from_json(value);
+              var currency = deprecated.Currency.from_json(value);
               if (!currency.is_valid()) return;
 
               value = convertCurrency(currency);

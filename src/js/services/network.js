@@ -3,11 +3,10 @@
  *
  * The network service is used to communicate with the Ripple network.
  *
- * It encapsulates a ripple.Remote instance.
+ * It encapsulates a RippleAPI instance.
  */
 
-var module = angular.module('network', []),
-    ripple = require('ripple-lib');
+var module = angular.module('network', []);
 
 module.factory('rpNetwork', ['$rootScope', function($scope)
 {
@@ -23,14 +22,14 @@ module.factory('rpNetwork', ['$rootScope', function($scope)
    */
   var Network = function() {
     this.connected = false;
-    this.api = new ripple.RippleAPI(Options.connection);
+    this.api = new RippleAPI(Options.connection);
     this.remote = this.api;
   };
 
   Network.prototype.connect = async function(serverSettings) {
     serverSettings = serverSettings ? serverSettings : Options.connection;
 
-    this.api = new ripple.RippleAPI(serverSettings);
+    this.api = new RippleAPI(serverSettings);
     this.remote = this.api;
     this.api.on('connected', () => {
       console.log('connected');

@@ -6,10 +6,7 @@
  * better to use a directive.
  */
 
-var webutil = require('../util/web'),
-    ripple = require('ripple-lib'),
-    Amount = ripple.Amount,
-    Currency = ripple.Currency;
+var webutil = require('../util/web');
 
 var module = angular.module('formatters', []);
 
@@ -216,10 +213,10 @@ module.directive('rpCurrency', function () {
       return function (scope, element, attr) {
         scope.$watch(attr.rpCurrency, function (input) {
           var currency;
-          if (input instanceof Currency) {
+          if (input instanceof deprecated.Currency) {
             currency = input;
           } else {
-            var amount = Amount.from_json(input);
+            var amount = deprecated.Amount.from_json(input);
             currency = amount.currency();
           }
 
