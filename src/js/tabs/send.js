@@ -251,13 +251,15 @@ SendTab.prototype.angular = function (module)
         // Check allowed currencies for this address
         var requestedRecipientAddress = send.recipient_address;
         send.currency_choices_constraints.accountLines = 'pending';
-        $network.remote.requestAccountCurrencies({account: requestedRecipientAddress})
-          .on('success', function (data) {
+        $network.api.request('account_currencies', {
+          account: requestedRecipientAddress,
+          ledger_index: 'validated'
+        }).then(response => {
             $scope.$apply(function () {
-              if (data.receive_currencies &&
+              if (response.receive_currencies &&
                   // We need to make sure the destination account hasn't changed
                   send.recipient_address === requestedRecipientAddress) {
-                send.currency_choices_constraints.accountLines = data.receive_currencies;
+                send.currency_choices_constraints.accountLines = response.receive_currencies;
 
                 // add XRP if it's allowed
                 if (!$scope.send.recipient_info.disallow_xrp) {
@@ -267,9 +269,9 @@ SendTab.prototype.angular = function (module)
                 $scope.update_currency_choices();
               }
             });
-          })
-          .on('error', function () {})
-          .request();
+        }).catch(function(error) {
+          console.log("Error request 'account_currencies': ", error);
+        })
       } else {
         // If the account doesn't exist, we can only send XRP
         send.currency_choices_constraints.accountLines = ["XRP"];
