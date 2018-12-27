@@ -112,8 +112,8 @@ HistoryTab.prototype.angular = function (module) {
       };
 
       var getTx = function(){
-        $network.remote.requestAccountTransactions(params)
-        .on('success', function(data) {
+        $network.api.request('account_tx', params)
+        .then(data => {
           if (data.transactions.length) {
             for(var i=0;i<data.transactions.length;i++) {
               var date = ripple.utils.toTimestamp(data.transactions[i].tx.date);
@@ -147,7 +147,10 @@ HistoryTab.prototype.angular = function (module) {
           } else {
             callback(history);
           }
-        }).request();
+        })
+        .catch(function(error) {
+          console.log("Error request 'account_tx': ", error);
+        })
       };
 
       getTx(0);
@@ -421,8 +424,8 @@ HistoryTab.prototype.angular = function (module) {
         binary: false
       };
 
-      $network.remote.requestAccountTransactions(params)
-      .on('success', function(data) {
+      $network.api.request('account_tx', params)
+      .then(data => {
         $scope.$apply(function () {
           if (data.transactions.length < limit) {
 
@@ -458,7 +461,10 @@ HistoryTab.prototype.angular = function (module) {
 
           }
         });
-      }).request();
+      })
+      .catch(function(error) {
+        console.log("Error request 'account_tx': ", error);
+      });
     }
 
     var exists = function(pty) {

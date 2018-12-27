@@ -201,15 +201,14 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
       .catch(handelRippleLinesError);
 
     // Transactions
-    remote.requestAccountTransactions({
+    $network.api.request('account_tx', {
       account: data.account,
       ledger_index_min: -1,
-      descending: true,
+      forward: false,
       limit: Options.transactions_per_page,
       binary: false
-    })
-      .on('transactions', handleAccountTx)
-      .on('error', handleAccountTxError).request();
+    }).then(handleAccountTx)
+      .catch(handleAccountTxError);
 
     // Outstanding offers
     $network.api.request('account_offers', {account: data.account})
