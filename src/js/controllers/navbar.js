@@ -22,22 +22,32 @@ module.controller('NavbarCtrl', ['$scope', '$element', '$compile', 'rpId',
     $scope.show_secondary = !$scope.show_secondary;
   };
 
-  async function serverStatusUpdate() {
+  function serverStatusUpdate() {
     if (!$scope.connected && $scope.userCredentials.username) {
       $scope.serverStatus = 'disconnected';
     }
     else if ($scope.connected) {
-      $scope.fee = await $network.api.getFee()
-      if ((parseFloat($scope.fee) > parseFloat(Options.low_load_threshold)) && (parseFloat($scope.fee) < parseFloat(Options.max_tx_network_fee))) {
-        $scope.serverLoad = 'mediumLoad';
-        $scope.serverStatus = 'mediumLoad';
-      } else if (parseFloat($scope.fee) >= parseFloat(Options.max_tx_network_fee)) {
-        $scope.serverLoad = 'highLoad';
-        $scope.serverStatus = 'highLoad';
-      } else {
-        $scope.serverLoad = '';
-        $scope.serverStatus = 'lowLoad';
-      }
+      $network.api.getFee().then(fee => {
+        $scope.$apply(function() {
+          $scope.fee = fee * 1000000;
+          if ((Number($scope.fee) > Number(Options.low_load_threshold)) &&
+            (Number($scope.fee) < Number(Options.max_tx_network_fee))) {
+            $scope.serverLoad = 'mediumLoad';
+            $scope.serverStatus = 'mediumLoad';
+          } else if (Number($scope.fee) >= Number(Options.max_tx_network_fee)) {
+            $scope.serverLoad = 'highLoad';
+            $scope.serverStatus = 'highLoad';
+          } else {
+            $scope.serverLoad = '';
+            $scope.serverStatus = 'lowLoad';
+          }
+        });
+      }).catch(function(error) {
+        console.log('Error getFee: ', error);
+        $scope.$apply(function() {
+          $scope.serverStatus = 'connected';
+        });
+      });
     }
   }
 
