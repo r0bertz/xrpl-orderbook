@@ -26,51 +26,6 @@ ColdWalletTab.prototype.angular = function (module) {
     $scope.sequenceNumber = 1;
     $scope.accountError = false;
 
-    // Parse the transaction returned by ripple-lib
-    // Return a human-readable message for the UI.
-    // We only consider transactions that originate from this account.
-    /*function formatTxnMessage(txn, address) {
-      var outcome = txn.outcome.result === 'tesSUCCESS' ?
-      'successful' : 'failed';
-
-      var txnMessage = 'The most recent transaction was a ' + outcome +
-      ' ' + txn.type;
-
-      $scope.sequenceNumber = txn.type === 'orderCancellation' ?
-      Number(txn.specification.orderSequence) + 1 : Number(txn.sequence) + 1;
-
-      if (txn.type === 'payment') {
-        txnMessage += ' to ' + txn.specification.destination.address + '. ' +
-        ' You paid: ';
-        var payments =  _.map(txn.outcome.balanceChanges[address],
-          function(amount) {
-            // Remove leading minus sign from amount
-            // Truncate to 6 chars
-            return amount.value.slice(1, 6) + ' ' + amount.currency;
-          }).join(', ');
-        txnMessage += payments + '. ';
-      } else if (txn.type === 'order') {
-        txnMessage += '. This was a ' + txn.specification.direction +
-        ' order for ' + txn.specification.quantity.amount.value +
-        ' of ' + txn.specification.quantity.amount.currency +
-        ' at a price of ' + txn.specification.quantity.amount
-        .value + ' ' + txn.specification.quantity.amount.currency + '. ';
-      } else if (txn.type === 'trustline') {
-        txnMessage += ' to ' + txn.specification.counterparty +
-        ' with a limit of ' + txn.specification.limit + ' ' +
-        txn.specification.currency + '.';
-      } else if (txn.type === 'orderCancellation') {
-        txnMessage += '. The order sequence was ' +
-        txn.specification.orderSequence + '. ';
-      } else if (txn.type === 'settings') {
-        txnMessage += ' transaction.';
-      }
-      txnMessage += ' The fee was ' + txn.outcome.fee + ' XRP. ' +
-      'The ID and sequence number of the transaction are ' + txn.id +
-      ' and  ' + txn.sequence + '.';
-      return txnMessage;
-    }*/
-
     var address = $routeParams.address;
     $scope.address = address;
 
@@ -80,134 +35,101 @@ ColdWalletTab.prototype.angular = function (module) {
 
       $scope.networkFee = await $network.api.getFee();
 
-      var account = $network.remote.account(address);
-      var server = $network.remote._getServer();
+      var serverInfo = await $network.api.getServerInfo();
 
-      account.entry(function(err, entry) {
-        $scope.accountLoaded = true;
-
-        if (err && err.remote && err.remote.error === 'actNotFound') {
-          $scope.$apply(function() {
-            $scope.accountError = 'Account ' + address + ' has not been funded';
-          });
-
-          return;
-        }
-
-        var defaultRipple = !!(entry.account_data.Flags & deprecated.Remote.flags.account_root.DefaultRipple);
-        var requireAuth = !!(entry.account_data.Flags & deprecated.Remote.flags.account_root.RequireAuth);
-        var globalFreeze = !!(entry.account_data.Flags & deprecated.Remote.flags.account_root.GlobalFreeze);
-
-        // There are three flags the user is concerned with
-        var accountInfo = [];
-        accountInfo.push({
-          setting: 'Require authorization',
-          enabled: requireAuth,
-          description: 'Prevent issuances from being held without authorization'
-        });
-        accountInfo.push({
-          setting: 'Default Ripple',
-          enabled: defaultRipple,
-          description: 'Allow balances in trust lines to Ripple by default'
-        });
-        accountInfo.push({
-          setting: 'Global Freeze',
-          enabled: globalFreeze,
-          description: 'Freeze all issuances'
-        });
-
+      $network.api.getSettings(address).then(settings => {
         $scope.$apply(function() {
-          $scope.accountInfo = accountInfo;
+          $scope.accountLoaded = true;
+          $scope.regularKeyEnabled = settings.RegularKey ? 'Yes' : 'No';
         });
 
-        $network.api.getSettings(address).then(settings => {
-          $scope.$apply(function() {
-            $scope.regularKeyEnabled = settings.RegularKey ? 'Yes' : 'No';
-          });
-        }).catch(function(error) {
-          console.log('Error getSettings: ', error);
-        });
+        var defaultRipple = !!settings.defaultRipple;
+        var requireAuth = !!settings.requireAuthorization;
+        var globalFreeze = !!settings.globalFreeze;
 
         $network.api.getAccountInfo(address).then(info => {
           $scope.$apply(function() {
             $scope.xrpBalance = info.xrpBalance;
 
             var ownerCount  = info.ownerCount || 0;
-            // TODO(lezhang): Get reserve.
-            $scope.reserve = server._reserve(ownerCount);
+            $scope.reserve = Number(serverInfo.validatedLedger.reserveBaseXRP)
+              + Number(serverInfo.validatedLedger.reserveIncrementXRP) * ownerCount;
             $scope.max_spend = $scope.xrpBalance - $scope.reserve;
+
+            // If we have a sequence number from the network, display to user
+            $scope.sequenceNumber = info.sequence;
           });
         }).catch(function(error) {
           console.log('Error getAccountInfo: ', error);
+          $scope.$apply(function() {
+            $scope.accountError = true;
+          });
         });
 
         // Fetch account trustlines and determine if any should have a warning
-        $network.api.request('account_lines', {account: address})
-          .then(lines => {
-            $scope.$apply(function() {
-              $scope.lines = lines.lines;
-              // Display any trustlines where the flag does not match the
-              // corresponding flag on the account root
-              $scope.warningLines = _.reduce(lines.lines, function(result, line) {
-                var warning1 = '';
-                var warning2 = '';
-                if (!!line.no_ripple === defaultRipple) {
-                  warning1 += 'Rippling flag on line differs from flag on account root.';
-                }
-                if (!!line.authorized !== requireAuth) { // TODO line.authorized ?
-                  warning2 += 'Trust line must be authorized.';
-                }
-                line.warning1 = warning1;
-                line.warning2 = warning2;
-                // Convert to boolean so undefined displays as false
-                line.no_ripple = !!line.no_ripple;
-                line.authorized = !!line.authorized;
-                if (warning1 || warning2) {
-                  result.push(line);
-                }
-                return result;
-              }, []);
-            });
-          })
-          .catch(function(error) {
-            console.log("Error request 'account_lines': ", error);
+        $network.api.request('account_lines', {account: address}).then(lines => {
+          // There are three flags the user is concerned with
+          var accountInfo = [];
+          accountInfo.push({
+            setting: 'Require authorization',
+            enabled: requireAuth,
+            description: 'Prevent issuances from being held without authorization'
+          });
+          accountInfo.push({
+            setting: 'Default Ripple',
+            enabled: defaultRipple,
+            description: 'Allow balances in trust lines to Ripple by default'
+          });
+          accountInfo.push({
+            setting: 'Global Freeze',
+            enabled: globalFreeze,
+            description: 'Freeze all issuances'
           });
 
-        // If we have a sequence number from the network, display to user
-        $scope.sequenceNumber = entry.account_data.Sequence;
+          $scope.$apply(function() {
+            $scope.accountInfo = accountInfo;
+            $scope.lines = lines.lines;
+            // Display any trustlines where the flag does not match the
+            // corresponding flag on the account root
+            $scope.warningLines = _.reduce(lines.lines, function(result, line) {
+              var warning1 = '';
+              var warning2 = '';
+              if (!!line.no_ripple === defaultRipple) {
+                warning1 += 'Rippling flag on line differs from flag on account root.';
+              }
+              if (!!line.authorized !== requireAuth) { // TODO line.authorized ?
+                warning2 += 'Trust line must be authorized.';
+              }
+              line.warning1 = warning1;
+              line.warning2 = warning2;
+              // Convert to boolean so undefined displays as false
+              line.no_ripple = !!line.no_ripple;
+              line.authorized = !!line.authorized;
+              if (warning1 || warning2) {
+                result.push(line);
+              }
+              return result;
+            }, []);
+          });
+        }).catch(function(error) {
+          console.log("Error request 'account_lines': ", error);
+          $scope.$apply(function() {
+            $scope.accountError = true;
+          });
+        });
 
         watcher();
+      }).catch(function(error) {
+        console.log('Error getSettings: ', error);
+        $scope.$apply(function() {
+          $scope.accountError = true;
+        });
       });
 
-      // Fetch the most recent transaction for this account (if exists)
-      /*network.remote.requestAccountTransactions({
-        account: address,
-        ledger_index_min: -1,
-        descending: true,
-        limit: 1,
-        binary: false
-      })
-      .on('transactions', function(response) {
-        if (response.transactions && response.transactions.length) {
-          $scope.$apply(function() {
-            console.log('tx', response.transactions[0]);
-            $scope.txnTime = response.transactions[0].tx.date;
-            $scope.lastTxn = formatTxnMessage(response.transactions[0], address);
-          });
-        }
-      })
-      .on('error', function(e){
-        console.log('error fetching transactions: ', JSON.stringify(e));
-        $scope.$apply(function() {
-          $scope.transactionError = true;
-          $scope.transactionErrorMessage = 'No transaction history available';
-        });
-      }).request();*/
+      $scope.refresh = function() {
+        $route.reload();
+      };
     });
-
-    $scope.refresh = function() {
-      $route.reload();
-    };
   }]);
 };
 
