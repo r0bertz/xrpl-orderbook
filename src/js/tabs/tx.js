@@ -34,27 +34,21 @@ TxTab.prototype.angular = function (module)
     };
 
     function loadTx() {
-      // XXX: Dirty, dirty. But it's going to change soon anyway.
-      var request = $network.remote.request_ledger_hash();
-      request.message.command = 'tx';
-      request.message.transaction = $routeParams.id;
-      request.on('success', function (res) {
+      $network.api.request('tx', {
+        transaction: $routeParams.id,
+        binary: false
+      }).then(response =>  {
         $scope.$apply(function () {
           $scope.state = 'loaded';
-          // XXX This is for the upcoming tx RPC call format change.
-          var tx = res.tx ? res.tx : res;
-          _.assign($scope.transaction, res);
-
-          $scope.amountSent = rewriter.getAmountSent(tx, tx.meta);
+          _.assign($scope.transaction, response)
+          $scope.amountSent = rewriter.getAmountSent(response, response.meta);
         });
-      });
-      request.on('error', function (res) {
+      }).catch(function(error) {
         $scope.$apply(function () {
           $scope.state = 'error';
-          console.log(res);
+          console.log("Error request 'tx': ", error);
         });
       });
-      request.request();
     }
 
     if ($network.connected) loadTx();
