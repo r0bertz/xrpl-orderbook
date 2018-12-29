@@ -115,7 +115,7 @@ module.factory('rpLedger', ['$q', '$rootScope', 'rpNetwork', 'rpTransactions',
     doRequest();
   }
 
-  $network.on('connected', function(){
+  $network.api.on('connected', function(){
     doRequest();
   });
 
