@@ -123,9 +123,18 @@ module.factory('rpLedger', ['$q', '$rootScope', 'rpNetwork', 'rpTransactions',
   {
     if (requested) return;
 
-    $network.remote.requestLedger("ledger_closed", "full")
-        .on('success', handleLedger)
-        .request();
+    $network.api.request("ledger_closed")
+      .then(response => {
+        return api.request('ledger', {
+          ledger_hash: response.ledger_hash,
+          ledger_index: response.ledger_index,
+          full: true
+        });
+      })
+      .then(handleLedger)
+      .catch(function(error) {
+        console.log("Error request 'ledger_closed': ", error);
+      });
 
     transactions.addListener(handleTransaction);
 
