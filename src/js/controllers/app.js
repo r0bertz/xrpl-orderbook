@@ -143,13 +143,8 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
     reset();
   }
 
-  var myHandleAccountEvent;
-  var myHandleAccountEntry;
-
   function handleAccountLoad(e, data)
   {
-    var remote = $network.remote;
-
     // If user logs in with regular key wallet
     // check to see if wallet is still valid
     $network.api.getSettings(data.account).then(settings => {
@@ -169,37 +164,54 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
         console.log('Error getSettings: ', error);
     });
 
-    account = data.account;
-
     reset();
 
-    var accountObj = remote.account(data.account);
-
-    // We need a reference to these functions after they're bound, so we can
-    // unregister them if the account is unloaded.
-    myHandleAccountEvent = handleAccountEvent;
-    myHandleAccountEntry = handleAccountEntry;
     $scope.loadingAccount = true;
+    $scope.subscribedAccount = false;
 
-    accountObj.on('transaction', myHandleAccountEvent);
-    accountObj.on('entry', function(data){
-      $scope.$apply(function () {
-        $scope.loadingAccount = false;
-        myHandleAccountEntry(data);
-      });
+    $network.api.connection.on('transaction', handleAccountEvent);
+    $network.api.connection.on('transaction', data => {
+      var accountChanged = false;
+      data.meta.AffectedNodes.forEach(function(node) {
+        if (!node.ModifiedNode) return;
+        if (node.ModifiedNode.LedgerEntryType === 'AccountRoot' &&
+            node.ModifiedNode.FinalFields.Account === data.account) {
+          accountChanged = true
+        }
+      })
+      if (accountChanged) {
+        $scope.$apply(function () {
+          $scope.loadingAccount = false;
+          handleAccountEntry(data);
+        });
+      }
     });
 
-    accountObj.entry(function (err, entry) {
-      if (err) {
-        $scope.loadingAccount = false;
-        $scope.loadState['account'] = true;
-      }
+    $network.api.getAccountInfo(data.account)
+      .then(handleAccountEntry)
+      .catch(function(error) {
+        console.log('Error getAccountInfo: ', error);
+        $scope.$apply(function () {
+          $scope.loadingAccount = false;
+          $scope.loadState['account'] = true;
+        });
+      });
+
+    $network.api.request('subscribe', {
+      accounts: [ data.account ]
+    }).then(response => {
+      console.log('Subscribed to account "', data.account, '"');
+      $scope.$apply(function () {
+        $scope.subscribedAccount = true;
+      });
+    }).catch(function(error) {
+      console.log('Error subscribe to account "', data.account, '": ', error);
     });
 
     // Ripple credit lines
     $network.api.request('account_lines', {account: data.account})
       .then(handleRippleLines)
-      .catch(handelRippleLinesError);
+      .catch(handleRippleLinesError);
 
     // Transactions
     $network.api.request('account_tx', {
@@ -219,11 +231,18 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
 
   function handleAccountUnload(e, data)
   {
-    if (myHandleAccountEvent && myHandleAccountEntry) {
-      var remote = $network.remote;
-      var accountObj = remote.account(data.account);
-      accountObj.removeListener('transaction', myHandleAccountEvent);
-      accountObj.removeListener('entry', myHandleAccountEntry);
+    if ($scope.subscribedAccount) {
+      $network.api.request('unsubscribe', {
+        accounts: [ data.account ]
+      }).then(response => {
+        console.log('Unsubscribed to account "', data.account, '"');
+        $scope.$apply(function () {
+          $scope.subscribedAccount = false;
+        });
+      }).catch(function(error) {
+        console.log('Error unsubscribe to account "', data.account, '": ',
+                    error);
+      });
     }
   }
 
@@ -288,34 +307,39 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
     });
   }
 
+  function reserve(serverInfo, ownerCount) {
+    return Number(serverInfo.validatedLedger.reserveBaseXRP)
+      + Number(serverInfo.validatedLedger.reserveIncrementXRP) * ownerCount;
+  }
+
   function handleAccountEntry(data)
   {
-    var remote = $network.remote;
-
     // Only overwrite account data if the new data has a bigger sequence number (is a newer information)
-    if ($scope.account && $scope.account.Sequence && $scope.account.Sequence >= data.Sequence) {
+    if ($scope.account && $scope.account.sequence && $scope.account.sequence >= data.sequence) {
       return;
     }
 
     $scope.account = data;
 
-    // XXX Shouldn't be using private methods
-    var server = remote._getServer();
+    $network.api.getServerInfo().then(serverInfo => {
+      $scope.$apply(() => {
+        // As per json wire format convention, real ledger entries are CamelCase,
+        // e.g. OwnerCount, additional convenience fields are lower case, e.g.
+        // reserve, max_spend.
+        var ownerCount  = $scope.account.ownerCount || 0;
+        $scope.account.reserve_base = reserve(serverInfo, 0);
+        $scope.account.reserve = reserve(serverInfo, ownerCount);
+        $scope.account.reserve_to_add_trust = reserve(serverInfo, ownerCount+1);
+        $scope.account.reserve_low_balance = $scope.account.reserve * 2;
 
-    // As per json wire format convention, real ledger entries are CamelCase,
-    // e.g. OwnerCount, additional convenience fields are lower case, e.g.
-    // reserve, max_spend.
-    var ownerCount  = $scope.account.OwnerCount || 0;
-    $scope.account.reserve_base = server._reserve(0);
-    $scope.account.reserve = server._reserve(ownerCount);
-    $scope.account.reserve_to_add_trust = server._reserve(ownerCount+1);
-    $scope.account.reserve_low_balance = $scope.account.reserve.product_human(2);
+        // Maximum amount user can spend
+        $scope.account.max_spend = data.xrpBalance - $scope.account.reserve;
 
-    // Maximum amount user can spend
-    var bal = deprecated.Amount.from_json(data.Balance);
-    $scope.account.max_spend = bal.subtract($scope.account.reserve);
-
-    $scope.loadState['account'] = true;
+        $scope.loadState['account'] = true;
+      });
+    }).catch(error => {
+      console.log('Error getServerInfo: ', error);
+    });
   }
 
   function handleAccountTx(data){

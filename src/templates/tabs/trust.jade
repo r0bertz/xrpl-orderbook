@@ -1,6 +1,6 @@
 section.col-xs-12.content(ng-controller="TrustCtrl")
 
-  div(ng-show="!loadingAccount && (!account.Balance && connected) && loadState.account")
+  div(ng-show="!loadingAccount && (!account.xrpBalance && connected) && loadState.account")
     include ../tabs/banner/_unfunded
 
   group(ng-show="(connected && loadState.lines) || !onlineMode")
@@ -8,7 +8,7 @@ section.col-xs-12.content(ng-controller="TrustCtrl")
     .row
       .col-sm-12
         //- N5. Notifications for connect new account
-        group.mode-granted.wide(ng-show='mode=="granted" && account.Balance')
+        group.mode-granted.wide(ng-show='mode=="granted" && account.xrpBalance')
           group.pending(ng-show='tx_result=="pending"')
             h2.tx-status(l10n) Adding a trust line to your Ripple account...
           group.result-success(ng-show='tx_result=="cleared"')
@@ -268,13 +268,13 @@ section.col-xs-12.content(ng-controller="TrustCtrl")
 
 
         .row
-          .unfunded.literal(ng-hide='account.Balance || !onlineMode', l10n)
+          .unfunded.literal(ng-hide='account.xrpBalance || !onlineMode', l10n)
             | Your account has to be activated before you can add a counterparty account.
 
         //- Account is funded
         .row(ng-hide="readOnly")
           .col-xs-12.col-sm-4.col-md-3.actions.btn-add-trust
-            a.btn.btn-primary.btn-sm.btn-block.sign(ng-click='toggle_form()', ng-show="mode === 'main' && (!addform_visible && ((account.Balance && connected) || !onlineMode))",
+            a.btn.btn-primary.btn-sm.btn-block.sign(ng-click='toggle_form()', ng-show="mode === 'main' && (!addform_visible && ((account.xrpBalance && connected) || !onlineMode))",
             ng-disabled='addform_visible', l10n) Add trust line
 
         div.disconnected(ng-hide="onlineMode")

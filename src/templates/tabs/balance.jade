@@ -12,7 +12,7 @@ section.col-xs-12.content(ng-controller="BalanceCtrl")
 
   //- Connected
   //- Connected
-  div(ng-show='!loadingAccount && !account.Balance && loadState.account && connected')
+  div(ng-show='!loadingAccount && !account.xrpBalance && loadState.account && connected')
     include ../tabs/banner/_unfunded
 
   group(ng-show="connected && loadState.account")
@@ -26,8 +26,8 @@ section.col-xs-12.content(ng-controller="BalanceCtrl")
                   i.icon-ripple-logo
                   | XRP – Ripple
               .balance.col-xs-2
-                span(ng-show="account.Balance") {{ account.Balance | rpamount:{precision: 20, min_precision: 5, max_sig_digits: 20} }}
-                span(ng-hide="account.Balance") 0
+                span(ng-show="account.xrpBalance") {{ account.xrpBalance }}
+                span(ng-hide="account.xrpBalance") 0
             .component.row.row-padding-small(ng-show="entry.show")
               .lbl.col-xs-8
                 span(l10n) Available&#32;
@@ -38,7 +38,7 @@ section.col-xs-12.content(ng-controller="BalanceCtrl")
                   rp-popover-trigger="hover"
                   l10n-data-content="Total amount of XRP in your account minus the reserve amount.")
               .balance.col-xs-2
-                span(ng-show="account.max_spend") {{account.max_spend | rpamount:{precision: 20 , min_precision: 6, max_sig_digits: 20} }}
+                span(ng-show="account.max_spend") {{account.max_spend }}
                 span(ng-hide="account.max_spend") 0
             .component.row.row-padding-small(ng-show="entry.show")
               .lbl.col-xs-8

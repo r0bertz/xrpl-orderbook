@@ -13,12 +13,12 @@ section.col-xs-12.content(ng-controller="HistoryCtrl")
     p.literal(l10n) Loading history...
 
   //- Show message if account has not been funded yet.
-  .unfunded(ng-show="!account.Balance && connected")
+  .unfunded(ng-show="!account.xrpBalance && connected")
     p.literal(l10n) You have to be funded before you can view history
 
   //- Connected
 
-  group.row(ng-show="connected && loadState.transactions && account.Balance")
+  group.row(ng-show="connected && loadState.transactions && account.xrpBalance")
     .filters.row-padding-small.col-md-3.col-sm-5.col-xs-12
       .filter.type-filter.row
         .col-xs-12.filters-wrapper
