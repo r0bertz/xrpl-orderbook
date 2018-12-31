@@ -308,8 +308,8 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
   }
 
   function reserve(serverInfo, ownerCount) {
-    return Number(serverInfo.validatedLedger.reserveBaseXRP)
-      + Number(serverInfo.validatedLedger.reserveIncrementXRP) * ownerCount;
+    return Number(serverInfo.validatedLedger.reserveBaseXRP) +
+        Number(serverInfo.validatedLedger.reserveIncrementXRP) * ownerCount;
   }
 
   function handleAccountEntry(data)
@@ -323,9 +323,7 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
 
     $network.api.getServerInfo().then(serverInfo => {
       $scope.$apply(() => {
-        // As per json wire format convention, real ledger entries are CamelCase,
-        // e.g. OwnerCount, additional convenience fields are lower case, e.g.
-        // reserve, max_spend.
+        $scope.account.xrpBalance = Number(data.xrpBalance);
         var ownerCount  = $scope.account.ownerCount || 0;
         $scope.account.reserve_base = reserve(serverInfo, 0);
         $scope.account.reserve = reserve(serverInfo, ownerCount);
@@ -333,7 +331,8 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
         $scope.account.reserve_low_balance = $scope.account.reserve * 2;
 
         // Maximum amount user can spend
-        $scope.account.max_spend = data.xrpBalance - $scope.account.reserve;
+        $scope.account.max_spend = $scope.account.xrpBalance -
+            $scope.account.reserve;
 
         $scope.loadState['account'] = true;
       });

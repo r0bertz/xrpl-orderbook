@@ -37,18 +37,20 @@ ColdWalletTab.prototype.angular = function (module) {
       $network.api.getFee()
         .then(fee => {
           $scope.$apply(function() {
-            $scope.networkFee = fee
+            $scope.networkFee = fee;
           });
           return $network.api.getServerInfo()
         })
         .then(serverInfo => {
           return $network.api.getAccountInfo(address).then(info => {
             $scope.$apply(function() {
-              $scope.xrpBalance = info.xrpBalance;
+              $scope.xrpBalance = Number(info.xrpBalance);
 
-              var ownerCount  = info.ownerCount || 0;
-              $scope.reserve = Number(serverInfo.validatedLedger.reserveBaseXRP)
-                + Number(serverInfo.validatedLedger.reserveIncrementXRP) * ownerCount;
+              var ownerCount = info.ownerCount || 0;
+              $scope.reserve =
+                  Number(serverInfo.validatedLedger.reserveBaseXRP) +
+                  Number(serverInfo.validatedLedger.reserveIncrementXRP) *
+                  ownerCount;
               $scope.max_spend = $scope.xrpBalance - $scope.reserve;
 
               // If we have a sequence number from the network, display to user

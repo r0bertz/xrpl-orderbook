@@ -29,12 +29,18 @@ module.controller('NavbarCtrl', ['$scope', '$element', '$compile', 'rpId',
     else if ($scope.connected) {
       $network.api.getFee().then(fee => {
         $scope.$apply(function() {
-          $scope.fee = fee * 1000000;
-          if ((Number($scope.fee) > Number(Options.low_load_threshold)) &&
-            (Number($scope.fee) < Number(Options.max_tx_network_fee))) {
+          // TODO(lezhang):
+          // 1. remove max_tx_network_fee, use RippleAPI constructor option
+          //    maxFeeXRP (string) instead.
+          // 2. change fee type to string which is the original type returned
+          //    from getFee().
+          // 3. remove rpamount filter from _navbar.jade.
+          $scope.fee = Number(fee) * 1000000;
+          if ($scope.fee > Options.low_load_threshold &&
+              $scope.fee < Options.max_tx_network_fee) {
             $scope.serverLoad = 'mediumLoad';
             $scope.serverStatus = 'mediumLoad';
-          } else if (Number($scope.fee) >= Number(Options.max_tx_network_fee)) {
+          } else if ($scope.fee >= Options.max_tx_network_fee) {
             $scope.serverLoad = 'highLoad';
             $scope.serverStatus = 'highLoad';
           } else {
