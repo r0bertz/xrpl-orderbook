@@ -6,8 +6,9 @@
 var Options = {
   // Rippled to connect
   connection: {
+    server: 'wss://s1.ripple.com',
     trace: false,
-    server: 'wss://s1.ripple.com'
+    maxFeeXRP: '0.0002'
   },
 
   // Number of transactions each page has in balance tab notifications
@@ -15,9 +16,6 @@ var Options = {
 
   // Number of ledgers ahead of the current ledger index where a tx is valid
   tx_last_ledger: 3,
-
-  // Set max transaction fee for network in drops of XRP
-  max_tx_network_fee: 200000,
 
   // Set max number of rows for orderbook
   orderbook_max_rows: 20,

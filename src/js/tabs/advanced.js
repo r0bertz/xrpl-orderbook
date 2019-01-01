@@ -41,7 +41,7 @@ AdvancedTab.prototype.angular = function(module)
     $scope.editBlob = false;
     $scope.editMaxNetworkFee = false;
     $scope.editAcctOptions = false;
-    $scope.max_tx_network_fee_human = deprecated.Amount.from_json($scope.options.max_tx_network_fee).to_human();
+    $scope.maxFeeXRP = $scope.options.connection.maxFeeXRP;
 
     $scope.saveSetings = function() {
       // Save in local storage
@@ -64,7 +64,7 @@ AdvancedTab.prototype.angular = function(module)
     $scope.saveMaxNetworkFee = function () {
       // Save in local storage
       if (!store.disabled) {
-        $scope.options.max_tx_network_fee = deprecated.Amount.from_human($scope.max_tx_network_fee_human).to_json();
+        $scope.options.connection.maxFeeXRP = $scope.maxFeeXRP;
         store.set('ripple_settings', angular.toJson($scope.options));
       }
 

@@ -46,7 +46,7 @@ AccountFlagsTab.prototype.angular = function(module) {
 
     // Used in offline mode
     if (!$scope.fee) {
-      $scope.fee = Options.max_tx_network_fee;
+      $scope.fee = Number(Options.connection.maxFeeXRP);
     };
 
     $scope.flags = {
@@ -185,8 +185,6 @@ AccountFlagsTab.prototype.angular = function(module) {
         tx.tx_json.Sequence = Number($scope.sequence);
         $scope.incrementSequence();
 
-        // Fee must be converted to drops
-        tx.tx_json.Fee = deprecated.Amount.from_json(Options.max_tx_network_fee).to_human() * 1000000;
         keychain.requestSecret(id.account, id.username, function(err, secret) {
           if (err) {
             console.warn(err);

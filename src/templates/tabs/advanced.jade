@@ -30,14 +30,14 @@ section.col-sm-12.content(ng-controller="AdvancedCtrl")
               l10n-data-content="The same network fee is used for each transaction in both online and offline mode.")
           .row.row-padding-small.advanced-form-row(ng-hide="editMaxNetworkFee")
             .col-sm-10
-              .description {{max_tx_network_fee_human}} {{xrp.code}}
+              .description {{maxFeeXRP}} {{xrp.code}}
             .col-sm-2
               a.btn.btn-block.btn-cancel(href="", ng-click="editMaxNetworkFee = true", l10n) edit
           .row.row-padding-small.field-edit-row(ng-show="editMaxNetworkFee")
             .col-sm-6.col-md-6.input-group#maxnetworkfeeForm
               input.form-control.maxNetworkFee#maxNetworkFee(
               name='maxNetworkFee', type='text'
-              ng-model='max_tx_network_fee_human'
+              ng-model='maxFeeXRP'
               required
               rp-amount
               rp-amount-positive
