@@ -129,7 +129,12 @@ rippleclient.types = types;
 rippleclient.tabs = {};
 _.forEach(tabs, function(tab) { rippleclient.tabs[tab.tabName] = tab; });
 
-app.config(['$routeProvider', function ($routeProvider) {
+app.config(function ($routeProvider, $locationProvider) {
+  // Since AngularJS 1.6, the default hash-prefix used for $location hash-bang
+  // URLs has changed from the empty string ('') to the bang ('!'). To make old
+  // url (e.g. 'href="#/history') work, set hash prefix to empty string.
+  $locationProvider.hashPrefix('');
+
   // Set up routing for tabs
   _.forEach(tabs, function (tab) {
     var config = {
@@ -177,7 +182,7 @@ app.config(['$routeProvider', function ($routeProvider) {
   });
 
   $routeProvider.otherwise({redirectTo: '/404'});
-}]);
+});
 
 app.run(['$rootScope', '$route', '$routeParams', 'rpNW',
   function ($rootScope, $route, $routeParams, rpNW)
