@@ -44,9 +44,7 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
   }
 
   // TODO make this wallet specific
-  // TODO(lezhang): restore the following line.
-  // $scope.onlineMode = !!store.get('onlineMode');
-  $scope.onlineMode = true
+  $scope.onlineMode = !!store.get('onlineMode');
 
   // Remember the onlineMode switch value and handle the connection
   $scope.switchOnlineMode = function(){
