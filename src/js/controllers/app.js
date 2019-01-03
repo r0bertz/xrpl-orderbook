@@ -700,7 +700,9 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
       netConnectedListener = $scope.$on('$netConnected', function() {
         console.log('$scope.address', address);
 
-        $id.setAccount(address);
+        if (address) {
+          $id.setAccount(address);
+        }
       });
     }
   });

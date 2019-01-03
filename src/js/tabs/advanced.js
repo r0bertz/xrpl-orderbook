@@ -86,15 +86,42 @@ AdvancedTab.prototype.angular = function(module)
 
   }]);
 
+  function parseUrl(url) {
+    var u = new URL(url);
+    var server = {
+      host: u.hostname,
+      secure: u.protocol === 'wss:' ? true : false,
+      port: u.port
+    };
+    if (!server.port) {
+      server.port = server.secure ? '443' : '80';
+    }
+    return server;
+  }
+
+  function generateUrl(server) {
+    var protocol = server.secure ? 'wss:' : 'ws:'
+    var url = protocol  + '//' + server.host;
+    if ((server.secure && server.port !== '443') ||
+        (!server.secure && server.port !== '80')) {
+      url += ':' + server.port;
+    }
+    return url
+  }
+
   module.controller('ServerRowCtrl', ['$scope', '$route',
     function ($scope, $route) {
       $scope.editing = false;
-      $scope.server = $.extend({ '$$hashKey' : $scope.server.$$hashKey }, $scope.options.connection.server);
+      $scope.server = parseUrl($scope.options.connection.server);
+
+      $scope.server.changePort = function(secure) {
+        $scope.server.port = secure ? '443' : '80';
+      }
 
       $scope.cancel = function () {
         $scope.editing = false;
-        $scope.server = $.extend({ '$$hashKey' : $scope.server.$$hashKey }, $scope.optionsBackup.connection.server);
-        Options.connection.server = $.extend({}, $scope.optionsBackup.connection.server);
+        $scope.server = parseUrl($scope.optionsBackup.connection.server);
+        $scope.options.connection.server = $scope.optionsBackup.connection.server;
       };
 
       $scope.noCancel = function () {
@@ -103,6 +130,7 @@ AdvancedTab.prototype.angular = function(module)
 
       $scope.save = function () {
         $scope.editing = false;
+        $scope.options.connection.server = generateUrl($scope.server);
 
         $scope.saveSetings();
 
