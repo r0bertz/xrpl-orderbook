@@ -66,22 +66,23 @@ ColdWalletTab.prototype.angular = function (module) {
           var defaultRipple = !!settings.defaultRipple;
           var requireAuth = !!settings.requireAuthorization;
           var globalFreeze = !!settings.globalFreeze;
-          var accountInfo = [];
-          accountInfo.push({
-            setting: 'Require authorization',
-            enabled: requireAuth,
-            description: 'Prevent issuances from being held without authorization'
-          });
-          accountInfo.push({
-            setting: 'Default Ripple',
-            enabled: defaultRipple,
-            description: 'Allow balances in trust lines to Ripple by default'
-          });
-          accountInfo.push({
-            setting: 'Global Freeze',
-            enabled: globalFreeze,
-            description: 'Freeze all issuances'
-          });
+          var accountInfo = [
+            {
+              setting: 'Require authorization',
+              enabled: requireAuth,
+              description: 'Prevent issuances from being held without authorization'
+           },
+            {
+              setting: 'Default Ripple',
+              enabled: defaultRipple,
+              description: 'Allow balances in trust lines to Ripple by default'
+            },
+            {
+              setting: 'Global Freeze',
+              enabled: globalFreeze,
+              description: 'Freeze all issuances'
+            }
+          ];
 
           $scope.$apply(function() {
             $scope.accountInfo = accountInfo;
@@ -95,20 +96,16 @@ ColdWalletTab.prototype.angular = function (module) {
               // Display any trustlines where the flag does not match the
               // corresponding flag on the account root
               $scope.warningLines = _.reduce(lines.lines, function(result, line) {
-                var warning1 = '';
-                var warning2 = '';
-                if (!!line.no_ripple === defaultRipple) {
-                  warning1 += 'Rippling flag on line differs from flag on account root.';
-                }
-                if (!!line.authorized !== requireAuth) { // TODO line.authorized ?
-                  warning2 += 'Trust line must be authorized.';
-                }
-                line.warning1 = warning1;
-                line.warning2 = warning2;
                 // Convert to boolean so undefined displays as false
                 line.no_ripple = !!line.no_ripple;
                 line.authorized = !!line.authorized;
-                if (warning1 || warning2) {
+                if (line.no_ripple === defaultRipple) {
+                  line.warning1 += 'Rippling flag on line differs from flag on account root.';
+                }
+                if (line.authorized !== requireAuth) { // TODO line.authorized ?
+                  line.warning2 += 'Trust line must be authorized.';
+                }
+                if (line.warning1 || line.warning2) {
                   result.push(line);
                 }
                 return result;
