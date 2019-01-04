@@ -77,7 +77,8 @@ AdvancedTab.prototype.angular = function(module)
 
     $scope.cancelEditMaxNetworkFee = function () {
       $scope.editMaxNetworkFee = false;
-      $scope.options.max_tx_network_fee = $scope.optionsBackup.max_tx_network_fee;
+      $scope.options.connection.maxFeeXRP =
+          $scope.optionsBackup.connection.maxFeeXRP;
     };
 
     $scope.cancelEditAcctOptions = function () {

@@ -34,10 +34,9 @@ if (store.enabled) {
     if (!settings.connection.server) {
       settings.connection.server = Options.connection.server;
     }
+    if (!settings.connection.maxFeeXRP) {
+      settings.connection.maxFeeXRP = Options.connection.maxFeeXRP;
+    }
     Options.connection = settings.connection;
-  }
-
-  if (settings.max_tx_network_fee) {
-    Options.max_tx_network_fee = settings.max_tx_network_fee;
   }
 }
