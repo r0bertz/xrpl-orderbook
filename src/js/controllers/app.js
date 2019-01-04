@@ -168,32 +168,36 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
     $scope.subscribedAccount = false;
 
     $network.api.connection.on('transaction', handleAccountEvent);
-    $network.api.connection.on('transaction', data => {
-      var accountChanged = false;
-      data.meta.AffectedNodes.forEach(function(node) {
+    $network.api.connection.on('transaction', response => {
+      var accountRoot = {};
+      response.meta.AffectedNodes.forEach(function(node) {
         if (!node.ModifiedNode) return;
         if (node.ModifiedNode.LedgerEntryType === 'AccountRoot' &&
             node.ModifiedNode.FinalFields.Account === data.account) {
-          accountChanged = true
+          accountRoot = $.extend({}, node.ModifiedNode.FinalFields);
         }
       })
-      if (accountChanged) {
+      if (!$.isEmptyObject(accountRoot)) {
         $scope.$apply(function () {
           $scope.loadingAccount = false;
-          handleAccountEntry(data);
+          handleAccountEntry(accountRoot);
         });
       }
     });
 
-    $network.api.getAccountInfo(data.account)
-      .then(handleAccountEntry)
-      .catch(function(error) {
-        console.log('Error getAccountInfo: ', error);
-        $scope.$apply(function () {
-          $scope.loadingAccount = false;
-          $scope.loadState['account'] = true;
-        });
+    $network.api.request('account_info', {
+      account: data.account,
+      ledger_index: 'validated'
+    }).then(response => {
+      $scope.loadingAccount = false;
+      handleAccountEntry(response.account_data)
+    }).catch(function(error) {
+      console.log('Error getAccountInfo: ', error);
+      $scope.$apply(function () {
+        $scope.loadingAccount = false;
+        $scope.loadState['account'] = true;
       });
+    });
 
     $network.api.request('subscribe', {
       accounts: [ data.account ]
@@ -305,31 +309,33 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
     });
   }
 
-  function reserve(serverInfo, ownerCount) {
+  function reserve(serverInfo, OwnerCount) {
     return Number(serverInfo.validatedLedger.reserveBaseXRP) +
-        Number(serverInfo.validatedLedger.reserveIncrementXRP) * ownerCount;
+        Number(serverInfo.validatedLedger.reserveIncrementXRP) * OwnerCount;
   }
 
   function handleAccountEntry(data)
   {
-    // Only overwrite account data if the new data has a bigger sequence number (is a newer information)
-    if ($scope.account && $scope.account.sequence && $scope.account.sequence >= data.sequence) {
+    // Only overwrite account data if the new data has a bigger sequence number
+    // (is a newer information)
+    if ($scope.account && $scope.account.Sequence &&
+        $scope.account.Sequence >= data.Sequence) {
       return;
     }
 
     $scope.account = data;
+    $scope.account.Balance = Number(data.Balance) / 1000000;
 
     $network.api.getServerInfo().then(serverInfo => {
       $scope.$apply(() => {
-        $scope.account.xrpBalance = Number(data.xrpBalance);
-        var ownerCount  = $scope.account.ownerCount || 0;
+        var OwnerCount  = $scope.account.OwnerCount || 0;
         $scope.account.reserve_base = reserve(serverInfo, 0);
-        $scope.account.reserve = reserve(serverInfo, ownerCount);
-        $scope.account.reserve_to_add_trust = reserve(serverInfo, ownerCount+1);
+        $scope.account.reserve = reserve(serverInfo, OwnerCount);
+        $scope.account.reserve_to_add_trust = reserve(serverInfo, OwnerCount+1);
         $scope.account.reserve_low_balance = $scope.account.reserve * 2;
 
         // Maximum amount user can spend
-        $scope.account.max_spend = $scope.account.xrpBalance -
+        $scope.account.max_spend = $scope.account.Balance -
             $scope.account.reserve;
 
         $scope.loadState['account'] = true;
@@ -375,6 +381,7 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
    */
   function processTxn(tx, meta, is_historic)
   {
+    // TODO(lezhang): Fix this.
     var processedTxn = rewriter.processTxn(tx, meta, account);
 
     if (processedTxn && processedTxn.error) {
@@ -386,11 +393,6 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
       $scope.history.unshift(processedTxn);
     } else if (processedTxn) {
       var transaction = processedTxn.transaction;
-
-      // Update account
-      if (processedTxn.accountRoot) {
-        handleAccountEntry(processedTxn.accountRoot);
-      }
 
       // Show status notification
       if (processedTxn.tx_result === "tesSUCCESS" &&

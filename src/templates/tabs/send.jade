@@ -1,13 +1,13 @@
 section.col-xs-12.content(ng-controller='SendCtrl')
   //- Show message if account has not been funded yet.
-  div(ng-show="!loadingAccount && !account.xrpBalance && loadState.account && connected")
+  div(ng-show="!loadingAccount && !account.Balance && loadState.account && connected")
     include ../tabs/banner/_unfunded
     p.literal(l10n="err-you-must-be-funded-before-you-can-send-money") You have to be funded before you can send money
 
   //- 1. Send form
 
   form.row-padding-small.mode-form#sendForm(name="sendForm", role="form"
-    ng-show='mode=="form" && ((account.xrpBalance && connected) || !onlineMode)'
+    ng-show='mode=="form" && ((account.Balance && connected) || !onlineMode)'
     ng-submit='send_prepared()')
     .row.form-group
       .col-xs-12.col-sm-6.col-md-5
@@ -229,13 +229,13 @@ section.col-xs-12.content(ng-controller='SendCtrl')
 
   //- N2. Waiting for path
 
-  group.mode-wait-path(ng-show='mode=="wait_path" && account.xrpBalance && connected')
+  group.mode-wait-path(ng-show='mode=="wait_path" && account.Balance && connected')
     p.literal(rp-spinner="4", l10n)
       | Ripple is calculating a path for your payment.
 
   //- N3. Confirmation page
 
-  group.mode-confirm(ng-show='mode=="confirm" && ((account.xrpBalance && connected) || !onlineMode)')
+  group.mode-confirm(ng-show='mode=="confirm" && ((account.Balance && connected) || !onlineMode)')
     p.literal(l10n) You are sending
       span(ng-show="onlineMode")  {{ (send.alt.amount || send.currency) | rpcurrency}}
       span(ng-show="!onlineMode")  {{ send.currency }}
@@ -269,18 +269,18 @@ section.col-xs-12.content(ng-controller='SendCtrl')
 
   //- N4. Waiting for transaction result page
 
-  group.mode-sending(ng-show='mode=="sending" && account.xrpBalance && connected')
+  group.mode-sending(ng-show='mode=="sending" && account.Balance && connected')
     include ../messages/sendconvert/_waiting
     hr
     //- p: button.btn.btn-default(ng-click='reset()', l10n) Stop waiting
 
   //- N5a. Error page
-  group.mode-error(ng-show='mode=="error" && account.xrpBalance && connected')
+  group.mode-error(ng-show='mode=="error" && account.Balance && connected')
     include ../messages/sendconvert/_localerror
     p: button.btn.btn-link.btn-default(ng-click='cancelConfirm()', l10n) cancel
 
   //- N5b. Ripple error page
-  group.mode-ripplerror(ng-show='mode=="rippleerror" && account.xrpBalance && connected')
+  group.mode-ripplerror(ng-show='mode=="rippleerror" && account.Balance && connected')
     rp-transaction-status(rp-engine-result="{{engine_result}}", rp-engine-result-message="{{engine_result_message}}", rp-accepted="{{engine_status_accepted}}")
     group.actions
       hr
@@ -313,7 +313,7 @@ section.col-xs-12.content(ng-controller='SendCtrl')
 
   //- N5c. Sent page
 
-  group.mode-status(ng-show='mode=="status" && account.xrpBalance && connected')
+  group.mode-status(ng-show='mode=="status" && account.Balance && connected')
     include ../messages/sendconvert/_confirmation
     group.actions
       hr

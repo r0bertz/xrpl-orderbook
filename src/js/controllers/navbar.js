@@ -8,6 +8,8 @@ var rewriter = require('../util/jsonrewriter');
 
 var module = angular.module('navbar', []);
 
+// TODO(lezhang): l10n-rp-popover-content in template doesn't show up.
+
 module.controller('NavbarCtrl', ['$scope', '$element', '$compile', 'rpId',
                                  'rpNetwork', '$location',
                                  function ($scope, el, $compile, $id,

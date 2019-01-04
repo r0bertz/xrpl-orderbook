@@ -12,7 +12,7 @@ section.col-xs-12.content(ng-controller="BalanceCtrl")
 
   //- Connected
   //- Connected
-  div(ng-show='!loadingAccount && !account.xrpBalance && loadState.account && connected')
+  div(ng-show='!loadingAccount && !account.Balance && loadState.account && connected')
     include ../tabs/banner/_unfunded
 
   group(ng-show="connected && loadState.account")
@@ -26,8 +26,8 @@ section.col-xs-12.content(ng-controller="BalanceCtrl")
                   i.icon-ripple-logo
                   | XRP – Ripple
               .balance.col-xs-2
-                span(ng-show="account.xrpBalance") {{ account.xrpBalance }}
-                span(ng-hide="account.xrpBalance") 0
+                span(ng-show="account.Balance") {{ account.Balance }}
+                span(ng-hide="account.Balance") 0
             .component.row.row-padding-small(ng-show="entry.show")
               .lbl.col-xs-8
                 span(l10n) Available&#32;

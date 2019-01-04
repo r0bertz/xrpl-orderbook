@@ -1,5 +1,5 @@
 section.col-xs-12.content(ng-controller="AccountFlagsCtrl")
-  div(ng-show="!loadingAccount && !account.xrpBalance && loadState.account && connected && !debug")
+  div(ng-show="!loadingAccount && !account.Balance && loadState.account && connected && !debug")
     include ../tabs/banner/_unfunded
 
   .notification-wrapper
@@ -11,12 +11,12 @@ section.col-xs-12.content(ng-controller="AccountFlagsCtrl")
   .row
     .col-sm-3
       include settings/_navbar
-    .col-sm-9.list(ng-show="!loadingAccount && !account.xrpBalance && loadState.account && connected")
+    .col-sm-9.list(ng-show="!loadingAccount && !account.Balance && loadState.account && connected")
       .unfunded.literal(l10n)
         | Your account has to be&#32;
         a(href="https://ripple.com/knowledge_center/activating-your-wallet/", target="_blank", l10n-inc) activated
         | &#32;before you can see this page.
-    .col-sm-9.list(ng-show='((connected && account.xrpBalance) || !onlineMode)')
+    .col-sm-9.list(ng-show='((connected && account.Balance) || !onlineMode)')
 
       //- Offline Flag Change
       div(ng-show='offlineSettingsChange')

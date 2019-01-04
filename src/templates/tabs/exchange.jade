@@ -9,13 +9,13 @@ section.col-xs-12.content(ng-controller="ExchangeCtrl")
     div(id="section_loader")
       div(class="loading_sections", l10n) Loading... 
 
-  div(ng-show="!loadingAccount && !account.xrpBalance && loadState.account && connected")
+  div(ng-show="!loadingAccount && !account.Balance && loadState.account && connected")
     include ../tabs/banner/_unfunded
     p.literal(l10n="err-you-must-be-funded-before-you-can-exchange-money") You have to be funded before you can convert    
 
   //- Connected
 
-  form.mode-form#exchangeForm(name="exchangeForm", ng-show='mode=="form" && account.xrpBalance && connected', ng-submit='exchange_prepared()')
+  form.mode-form#exchangeForm(name="exchangeForm", ng-show='mode=="form" && account.Balance && connected', ng-submit='exchange_prepared()')
     .form-group
       label(for='amount', l10n="Receive (amount)") Receive
       .row.row-padding-small.amount
@@ -85,12 +85,12 @@ section.col-xs-12.content(ng-controller="ExchangeCtrl")
 
   //- N2. Waiting for path
 
-  group.mode-wait-path(ng-show='mode=="wait_path" && account.xrpBalance')
+  group.mode-wait-path(ng-show='mode=="wait_path" && account.Balance')
     p.throbber.literal(l10n) Ripple is calculating a path for your conversion.
 
   //- N3. Confirmation page
 
-  group.mode-confirm(ng-show='mode=="confirm" && account.xrpBalance')
+  group.mode-confirm(ng-show='mode=="confirm" && account.Balance')
     span(l10n)
       p.literal(l10n-inc) You are exchanging
       p.amount_feedback
@@ -117,19 +117,19 @@ section.col-xs-12.content(ng-controller="ExchangeCtrl")
 
   //- N4. Waiting for transaction result page
 
-  group.mode-sending(ng-show='mode=="sending" && account.xrpBalance')
+  group.mode-sending(ng-show='mode=="sending" && account.Balance')
     include ../messages/sendconvert/_waiting
     hr
     //- p: button.btn.btn-default(ng-click='reset()', l10n) Stop waiting
 
   //- N5. Error page
-  group.mode-error(ng-show='mode=="error" && account.xrpBalance')
+  group.mode-error(ng-show='mode=="error" && account.Balance')
     include ../messages/sendconvert/_localerror
     p: button.btn.btn-link.btn-default(ng-click='cancelConfirm()', l10n) cancel
 
   //- N6. Confirmed page 
 
-  group.mode-status(ng-show='mode=="status" && account.xrpBalance')
+  group.mode-status(ng-show='mode=="status" && account.Balance')
     include ../messages/sendconvert/_confirmation
     group.actions
       hr

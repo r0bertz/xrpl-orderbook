@@ -44,14 +44,14 @@ ColdWalletTab.prototype.angular = function (module) {
         .then(serverInfo => {
           return $network.api.getAccountInfo(address).then(info => {
             $scope.$apply(function() {
-              $scope.xrpBalance = Number(info.xrpBalance);
+              $scope.Balance = Number(info.xrpBalance);
 
               var ownerCount = info.ownerCount || 0;
               $scope.reserve =
                   Number(serverInfo.validatedLedger.reserveBaseXRP) +
                   Number(serverInfo.validatedLedger.reserveIncrementXRP) *
                   ownerCount;
-              $scope.max_spend = $scope.xrpBalance - $scope.reserve;
+              $scope.max_spend = $scope.Balance - $scope.reserve;
 
               // If we have a sequence number from the network, display to user
               $scope.sequenceNumber = info.sequence;

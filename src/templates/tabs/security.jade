@@ -1,6 +1,6 @@
 section.col-xs-12.content(ng-controller="SecurityCtrl")
   .row
-    div.col-xs-12(ng-show="!loadingAccount && !account.xrpBalance && loadState.account && connected")
+    div.col-xs-12(ng-show="!loadingAccount && !account.Balance && loadState.account && connected")
       include ../tabs/banner/_unfunded
     .col-sm-4.col-md-3.col-xs-12(ng-show="isUnlocked")
       include settings/_navbar
