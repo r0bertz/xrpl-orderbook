@@ -77,6 +77,81 @@ module.factory('rpNetwork', ['$rootScope', function($scope)
     var self = this;
   };
 
+  /* Milliseconds to wait between checks for a new ledger. */
+  const INTERVAL = 1000;
+
+  Network.prototype.submitTx = function (
+      prepared, secret, onSuccess, onError, onSubmit) {
+    return this.api.getLedger().then(ledger => {
+      const signedData = this.api.sign(prepared.txJSON, secret);
+      return this.api.submit(signedData.signedTransaction).then(data => {
+        const submitResult = {
+          engine_result: data.resultCode,
+          engine_result_message: data.resultMessage
+        };
+
+        console.log('Transaction submit result:', submitResult);
+
+        if (data.resultCode === 'tesSUCCESS') {
+          if (onSubmit) onSubmit(submitResult);
+        } else {
+          if (onError) onError(submitResult);
+        }
+
+        const options = {
+          minLedgerVersion: ledger.ledgerVersion,
+          maxLedgerVersion: prepared.instructions.maxLedgerVersion
+        };
+        return new Promise((resolve, reject) => {
+          setTimeout(() => this.verifyTx(signedData.id, options, submitResult,
+              onSuccess, onError).then(resolve, reject), INTERVAL);
+        });
+      });
+    });
+  };
+
+  /* Verify a transaction is in a validated XRP Ledger version */
+  Network.prototype.verifyTx = function (hash, options, submitResult, onSuccess,
+      onError) {
+    return this.api.getTransaction(hash, options).then(data => {
+      const verificationResult = {
+        engine_result: data.outcome.result,
+        engine_result_message: ''
+      };
+
+      console.log('Transaction verification result:', verificationResult);
+
+      if (data.outcome.result === 'tesSUCCESS') {
+        onSuccess(verificationResult);
+      } else {
+        onError(verificationResult);
+      }
+    }).catch(error => {
+      /* If transaction not in latest validated ledger,
+         try again until max ledger hit */
+      if (error instanceof this.api.errors.PendingLedgerVersionError) {
+        return new Promise((resolve, reject) => {
+          setTimeout(() => this.verifyTx(hash, options, submitResult,
+             onSuccess, onError).then(resolve, reject), INTERVAL);
+        });
+      }
+
+      console.warn(error);
+
+      /* if submit succeeded or the error is not ledger NotFoundError,
+         notify caller with onError callback. */
+      if (submitResult.engine_result === 'tesSUCCESS' || !(
+            error instanceof this.api.errors.NotFoundError &&
+            error.message === 'ledger_index and LedgerSequence not found in tx')
+      ) {
+        onError({
+          engine_result: '',
+          engine_result_message: 'Transaction not verified: ' + error.message
+        });
+      }
+    });
+  }
+
   return new Network();
 }]);
 
