@@ -26,8 +26,6 @@ require('../services/keychain');
 require('../services/network');
 //require('../services/api');
 require('../services/books');
-require('../services/transactions');
-require('../services/ledger');
 require('../services/popup');
 require('../services/nwhelpers');
 require('../services/filedialog');
