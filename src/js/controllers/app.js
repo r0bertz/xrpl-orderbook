@@ -260,8 +260,8 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
         //      library upstream.
         line = $.extend({}, line, {
           limit: deprecated.Amount.from_json({value: line.limit, currency: line.currency, issuer: line.account}),
-          limit_peer: deprecated.Amount.from_json({value: line.limit_peer, currency: line.currency, issuer: account}),
-          balance: deprecated.Amount.from_json({value: line.balance, currency: line.currency, issuer: account})
+          limit_peer: deprecated.Amount.from_json({value: line.limit_peer, currency: line.currency, issuer: line.account}),
+          balance: deprecated.Amount.from_json({value: line.balance, currency: line.currency, issuer: line.account})
         });
 
         $scope.lines[line.account+line.currency] = line;

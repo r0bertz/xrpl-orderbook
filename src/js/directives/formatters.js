@@ -28,6 +28,7 @@ module.directive('rpPrettyIssuer', function () {
 
           scope.alias = null;
           scope.name = null;
+
           if (scope.contacts) {
             scope.name = webutil.isContact(scope.contacts, scope.issuer);
           }
@@ -133,7 +134,7 @@ module.directive('rpPrettyIdentity', ['$timeout', function ($timeout) {
             cancelHidePopoverTimeout = null;
           } else if (!cancelShowPopoverTimeout) {
             cancelShowPopoverTimeout = $timeout( function() {
-              element.popover('show'); 
+              element.popover('show');
               shown = true;
             }, popupDelay, false );
             cancelShowPopoverTimeout.finally(function() { cancelShowPopoverTimeout = null; });
@@ -157,7 +158,7 @@ module.directive('rpPrettyIdentity', ['$timeout', function ($timeout) {
         }
         // XXX Set title to identity
 
-        element.popover('destroy');
+        element.popover('dispose');
         var content = 'Ripple address ' + scope.identity;
         var options = {  content: content,
           trigger: 'manual', placement: 'top',

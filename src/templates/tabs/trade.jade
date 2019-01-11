@@ -400,14 +400,14 @@ section.col-xs-12.content(ng-controller="TradeCtrl")
           div(ng-hide="isEmpty(offers)")
             .row.head
               .col-sm-1.type(l10n) Type
-              .col-sm-4(l10n) Currencies
+              .col-sm-5(l10n) Currencies
                 span.issuer(l10n-inc)  (Issuer)
               .col-sm-2.price(l10n) Price
-              .col-sm-3.amount(l10n) Amount
+              .col-sm-2.amount(l10n) Amount
               .col-sm-2.action(l10n) Action
           .row(ng-repeat="entry in offers", ng-class="{cancelling: cancelling}")
             .col-sm-1.type(data-label="Type") {{entry.type | rpucfirst}}
-            .col-sm-4(data-label="Currencies")
+            .col-sm-5(data-label="Currencies")
               a(href="",ng-click="goto_order_currency()")
                 span {{entry.first | rpcurrency}}
                 span.issuer(ng-show="entry.first.issuer() && !entry.first.is_native()") &nbsp;(
@@ -427,7 +427,7 @@ section.col-xs-12.content(ng-controller="TradeCtrl")
                   | )
             .col-sm-2.price.rpamount(data-label="Price") {{entry.second | rpamountratio:entry.first | rpamount:{precision: 5, min_precision: 5} }}
               span.currency  {{entry.second | rpcurrency}}
-            .col-sm-3.amount.rpamount(data-label="Amount") {{entry.first | rpamount}}
+            .col-sm-2.amount.rpamount(data-label="Amount") {{entry.first | rpamount}}
               span.currency  {{entry.first | rpcurrency}}
             .col-sm-2.action(rp-spinner="{{cancelling ? 4 : null}}")
               rp-confirm(

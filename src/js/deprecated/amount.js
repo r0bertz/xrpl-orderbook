@@ -211,7 +211,7 @@ Amount.prototype.ratio_human = function(denom, opts) {
   //
   // To compensate, we multiply the numerator by 10^xns_precision.
   if (denominator._is_native) {
-    numerator._set_value(numerator.multiply(bi_xns_unit));
+    numerator._set_value(numerator._value.multiply(bi_xns_unit));
   }
 
   return numerator.divide(denominator);

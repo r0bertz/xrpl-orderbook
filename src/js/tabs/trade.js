@@ -1,6 +1,7 @@
 var util = require('util');
 var webutil = require('../util/web');
 var settings = require('../util/settings');
+var Tx = require('../util/tx');
 var Tab = require('../client/tab').Tab;
 var rewriter = require('../util/jsonrewriter');
 var gateways = require('../../../deps/gateways.json');
@@ -302,41 +303,36 @@ TradeTab.prototype.angular = function(module)
      * Happens when user clicks on "Cancel" in "My Orders".
      */
     $scope.cancel_order = function() {
-      var seq   = this.entry ? this.entry.seq : this.order.Sequence;
+      var seq = this.entry ? this.entry.seq : this.order.Sequence;
       var order = this;
-      var tx    = $network.remote.transaction();
-      var options = {
-        account: id.account,
-        offer_sequence: seq
-      };
 
       $scope.cancelError = null;
 
-      tx.offerCancel(options);
-      tx.on('success', function() {
-      });
+      var onTransactionSuccess = function() { };
 
-      tx.on('error', function (err) {
-        console.log("cancel error: ", err);
+      var onTransactionError = function (err) {
+        console.log("order cancel error: ", err);
 
-        order.cancelling   = false;
+        order.cancelling = false;
         $scope.cancelError = err.engine_result_message;
 
         if (!$scope.$$phase) {
           $scope.$apply();
         }
-      });
+      };
 
       keychain.requestSecret(id.account, id.username, function (err, secret) {
         if (err) {
-
-          //err should equal 'canceled' here, other errors are not passed through
+          // err should equal 'canceled' here, other errors are not passed through
           order.cancelling = false;
           return;
         }
 
-        tx.secret(secret);
-        tx.submit();
+        $network.api.prepareOrderCancellation(id.account, {
+          orderSequence: seq
+        }, Tx.Instructions).then(prepared => {
+          $network.submitTx(prepared, secret, onTransactionSuccess, onTransactionError);
+        }).catch(console.error);
       });
 
       order.cancelling = true;
@@ -354,40 +350,19 @@ TradeTab.prototype.angular = function(module)
     $scope.order_confirmed = function (type)
     {
       var order = $scope.order[type];
-      var tx = $network.remote.transaction();
 
-      var options = {
-        src: id.account,
-        buy: order.buy_amount,
-        sell: order.sell_amount
+      var onTransactionSubmit = function (res) {
+        setEngineStatus(res, false, type);
       };
 
-      tx.offerCreate(options);
-
-      // Add memo to tx
-      tx.addMemo('client', 'rt' + $rootScope.version);
-
-      // Sets a tfSell flag. This is the only way to distinguish
-      // sell offers from buys.
-      if (type === 'sell')
-        tx.setFlags('Sell');
-
-      tx.on('proposed', function (res) {
-
-        setEngineStatus(res, false, type);
-
-      });
-
-      tx.on('success', function(res) {
+      var onTransactionSuccess = function(res) {
         setEngineStatus(res, true, type);
         order.mode = "done";
 
         var tx = rewriter.processTxn(res, res.metadata, id.account);
-
         if (tx.effects) {
           for (var i = 0; i < tx.effects.length; i++) {
             var messageType = tx.effects[i].type;
-
             switch (messageType) {
               case 'trust_change_balance':
                 $scope.executedOnOfferCreate = 'all';
@@ -401,31 +376,59 @@ TradeTab.prototype.angular = function(module)
             }
           }
         }
-
         if (!$scope.$$phase) {
           $scope.$apply();
         }
-      });
+      };
 
-      tx.on('error', function (err) {
+      var onTransactionError = function (err) {
         setEngineStatus(err, false, type);
         order.mode = "done";
 
         if (!$scope.$$phase) {
           $scope.$apply();
         }
-      });
+      };
 
       keychain.requestSecret(id.account, id.username, function (err, secret) {
         if (err) {
-
           //err should equal 'canceled' here, other errors are not passed through
           order.mode = 'trade';
           return;
         }
 
-        tx.secret(secret);
-        tx.submit();
+        function toAmount(amount) {
+          if (amount.is_native()) {
+            return {
+              currency: 'drops',
+              value: amount.to_text()
+            }
+          } else {
+            return {
+              currency: amount.currency().get_iso(),
+              counterparty: amount.issuer(),
+              value: amount.to_text()
+            }
+          }
+        }
+
+        var buy_amount = toAmount(order.buy_amount);
+        var sell_amount = toAmount(order.sell_amount);
+        var quantity = type === 'buy' ? buy_amount : sell_amount;
+        var totalPrice = type === 'buy' ? sell_amount : buy_amount;
+
+        $network.api.prepareOrder(id.account, {
+          direction: type,
+          quantity: quantity,
+          totalPrice: totalPrice,
+          memos: [{
+            type: $network.api.convertStringToHex('client'),
+            format: $network.api.convertStringToHex('rt' + $rootScope.version)
+          }],
+        }, Tx.Instructions).then(prepared => {
+          $network.submitTx(prepared, secret, onTransactionSuccess,
+              onTransactionError, onTransactionSubmit);
+        }).catch(console.error);
       });
 
       order.mode = "sending";
@@ -630,7 +633,7 @@ TradeTab.prototype.angular = function(module)
       $scope.tradeChartJsonCounter = JSON.stringify(counter);
 
       $scope.tradeEmbeddedHTML = $sce.trustAsHtml("<iframe "
-        + "src='http://ripplecharts.com/embed/pricechart?theme=light&type=candlestick&counter=" + $scope.tradeChartJsonCounter + "=&base=" + $scope.tradeChartJsonBase + "&live=true' "
+        + "src='https://xrpcharts.ripple.com/embed/pricechart?theme=light&type=candlestick&counter=" + $scope.tradeChartJsonCounter + "=&base=" + $scope.tradeChartJsonBase + "&live=true' "
         + "height='300' width='100%' frameborder='0' />");
     }
 
