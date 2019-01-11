@@ -52,6 +52,7 @@
     "ripple-address-codec": "^2.0.1",
     "ripple-binary-codec": "0.2.0",
     "ripple-lib": "^1.1.2",
+    "ripple-lib-orderbook": "^1.0.0",
     "setimmediate": "^1.0.2",
     "sinon": "^7.2.2",
     "sinon-chai": "^3.3.0",
