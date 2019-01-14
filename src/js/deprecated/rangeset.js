@@ -4,7 +4,7 @@ const _ = require('lodash');
 const assert = require('assert');
 const ranges = Symbol();
 
-function mergeIntervals(intervals) {
+function mergeIntervals(intervals                         ) {
   const stack = [[-Infinity, -Infinity]];
   _.forEach(_.sortBy(intervals, x => x[0]), interval => {
     const lastInterval = stack.pop();
@@ -32,16 +32,16 @@ class RangeSet {
       range[0].toString() + '-' + range[1].toString()).join(',');
   }
 
-  addRange(start, end) {
+  addRange(start        , end        ) {
     assert(start <= end, 'invalid range');
     this[ranges] = mergeIntervals(this[ranges].concat([[start, end]]));
   }
 
-  addValue(value) {
+  addValue(value        ) {
     this.addRange(value, value);
   }
 
-  parseAndAddRanges(rangesString) {
+  parseAndAddRanges(rangesString        ) {
     const rangeStrings = rangesString.split(',');
     _.forEach(rangeStrings, rangeString => {
       const range = rangeString.split('-').map(Number);
@@ -49,11 +49,11 @@ class RangeSet {
     });
   }
 
-  containsRange(start, end) {
+  containsRange(start        , end        ) {
     return _.some(this[ranges], range => range[0] <= start && range[1] >= end);
   }
 
-  containsValue(value) {
+  containsValue(value        ) {
     return this.containsRange(value, value);
   }
 }

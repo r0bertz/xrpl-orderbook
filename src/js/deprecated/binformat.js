@@ -1,6 +1,8 @@
 'use strict';
 
-/*eslint no-multi-spaces:0,space-in-brackets:0,key-spacing:0,comma-spacing:0*/
+/*eslint-disable max-len,spaced-comment,array-bracket-spacing,key-spacing*/
+/*eslint-disable no-multi-spaces,comma-spacing*/
+/*eslint-disable no-multi-spaces:0,space-in-brackets:0,key-spacing:0,comma-spacing:0*/
 
 /**
  * Data type map.
@@ -52,7 +54,8 @@ const FIELDS_MAP = exports.fields = {
   // Common types
   1: { // Int16
     1: 'LedgerEntryType',
-    2: 'TransactionType'
+    2: 'TransactionType',
+    3: 'SignerWeight'
   },
   2: { // Int32
     2: 'Flags',
@@ -87,7 +90,11 @@ const FIELDS_MAP = exports.fields = {
     31: 'ReserveBase',
     32: 'ReserveIncrement',
     33: 'SetFlag',
-    34: 'ClearFlag'
+    34: 'ClearFlag',
+    35: 'SignerQuorum',
+    36: 'CancelAfter',
+    37: 'FinishAfter',
+    38: 'SignerListID'
   },
   3: { // Int64
     1: 'IndexNext',
@@ -116,7 +123,8 @@ const FIELDS_MAP = exports.fields = {
     17: 'InvoiceID',
     18: 'Nickname',
     19: 'Amendment',
-    20: 'TicketID'
+    20: 'TicketID',
+    21: 'Digest'
   },
   6: { // Amount
     1: 'Amount',
@@ -146,7 +154,8 @@ const FIELDS_MAP = exports.fields = {
     11: 'CreateCode',
     12: 'MemoType',
     13: 'MemoData',
-    14: 'MemoFormat'
+    14: 'MemoFormat',
+    17: 'Proof'
   },
   8: { // Account
     1: 'Account',
@@ -166,13 +175,15 @@ const FIELDS_MAP = exports.fields = {
     7: 'FinalFields',
     8: 'NewFields',
     9: 'TemplateEntry',
-    10: 'Memo'
+    10: 'Memo',
+    11: 'SignerEntry',
+    16: 'Signer'
   },
   15: { // Array
     1: undefined,  // end of Array
     2: 'SigningAccounts',
-    3: 'TxnSignatures',
-    4: 'Signatures',
+    3: 'Signers',
+    4: 'SignerEntries',
     5: 'Template',
     6: 'Necessary',
     7: 'Sufficient',
@@ -183,7 +194,7 @@ const FIELDS_MAP = exports.fields = {
   // Uncommon types
   16: { // Int8
     1: 'CloseResolution',
-    2: 'TemplateEntryType',
+    2: 'Method',
     3: 'TransactionResult'
   },
   17: { // Hash160
@@ -202,17 +213,17 @@ const FIELDS_MAP = exports.fields = {
   }
 };
 
-let INVERSE_FIELDS_MAP = exports.fieldsInverseMap = { };
+const INVERSE_FIELDS_MAP = exports.fieldsInverseMap = { };
 
 Object.keys(FIELDS_MAP).forEach(function(k1) {
   Object.keys(FIELDS_MAP[k1]).forEach(function(k2) {
-    INVERSE_FIELDS_MAP[FIELDS_MAP[k1][k2]] = [ Number(k1), Number(k2) ];
+    INVERSE_FIELDS_MAP[FIELDS_MAP[k1][k2]] = [Number(k1), Number(k2)];
   });
 });
 
-const REQUIRED = exports.REQUIRED = 0,
-      OPTIONAL = exports.OPTIONAL = 1,
-      DEFAULT  = exports.DEFAULT  = 2;
+const REQUIRED = exports.REQUIRED = 0;
+const OPTIONAL = exports.OPTIONAL = 1;
+const DEFAULT  = exports.DEFAULT  = 2;
 
 const base = [
   [ 'TransactionType'    , REQUIRED ],
@@ -226,76 +237,100 @@ const base = [
   [ 'SigningPubKey'      , REQUIRED ],
   [ 'TxnSignature'       , OPTIONAL ],
   [ 'AccountTxnID'       , OPTIONAL ],
-  [ 'Memos'              , OPTIONAL ]
+  [ 'Memos'              , OPTIONAL ],
+  [ 'Signers'            , OPTIONAL ]
 ];
 
 exports.tx = {
   AccountSet: [3].concat(base, [
-    [ 'EmailHash'          , OPTIONAL ],
-    [ 'WalletLocator'      , OPTIONAL ],
-    [ 'WalletSize'         , OPTIONAL ],
-    [ 'MessageKey'         , OPTIONAL ],
-    [ 'Domain'             , OPTIONAL ],
-    [ 'TransferRate'       , OPTIONAL ],
-    [ 'SetFlag'            , OPTIONAL ],
-    [ 'ClearFlag'          , OPTIONAL ]
+    ['EmailHash'          , OPTIONAL],
+    ['WalletLocator'      , OPTIONAL],
+    ['WalletSize'         , OPTIONAL],
+    ['MessageKey'         , OPTIONAL],
+    ['Domain'             , OPTIONAL],
+    ['TransferRate'       , OPTIONAL],
+    ['SetFlag'            , OPTIONAL],
+    ['ClearFlag'          , OPTIONAL]
   ]),
   TrustSet: [20].concat(base, [
-    [ 'LimitAmount'        , OPTIONAL ],
-    [ 'QualityIn'          , OPTIONAL ],
-    [ 'QualityOut'         , OPTIONAL ]
+    ['LimitAmount'        , OPTIONAL],
+    ['QualityIn'          , OPTIONAL],
+    ['QualityOut'         , OPTIONAL]
   ]),
   OfferCreate: [7].concat(base, [
-    [ 'TakerPays'          , REQUIRED ],
-    [ 'TakerGets'          , REQUIRED ],
-    [ 'Expiration'         , OPTIONAL ],
-    [ 'OfferSequence'      , OPTIONAL ]
+    ['TakerPays'          , REQUIRED],
+    ['TakerGets'          , REQUIRED],
+    ['Expiration'         , OPTIONAL],
+    ['OfferSequence'      , OPTIONAL]
   ]),
   OfferCancel: [8].concat(base, [
-    [ 'OfferSequence'      , REQUIRED ]
+    ['OfferSequence'      , REQUIRED]
   ]),
   SetRegularKey: [5].concat(base, [
-    [ 'RegularKey'         , OPTIONAL ]
+    ['RegularKey'         , OPTIONAL]
   ]),
   Payment: [0].concat(base, [
-    [ 'Destination'        , REQUIRED ],
-    [ 'Amount'             , REQUIRED ],
-    [ 'SendMax'            , OPTIONAL ],
-    [ 'Paths'              , DEFAULT  ],
-    [ 'InvoiceID'          , OPTIONAL ],
-    [ 'DestinationTag'     , OPTIONAL ]
+    ['Destination'        , REQUIRED],
+    ['Amount'             , REQUIRED],
+    ['SendMax'            , OPTIONAL],
+    ['Paths'              , DEFAULT],
+    ['InvoiceID'          , OPTIONAL],
+    ['DestinationTag'     , OPTIONAL]
   ]),
   Contract: [9].concat(base, [
-    [ 'Expiration'         , REQUIRED ],
-    [ 'BondAmount'         , REQUIRED ],
-    [ 'StampEscrow'        , REQUIRED ],
-    [ 'RippleEscrow'       , REQUIRED ],
-    [ 'CreateCode'         , OPTIONAL ],
-    [ 'FundCode'           , OPTIONAL ],
-    [ 'RemoveCode'         , OPTIONAL ],
-    [ 'ExpireCode'         , OPTIONAL ]
+    ['Expiration'         , REQUIRED],
+    ['BondAmount'         , REQUIRED],
+    ['StampEscrow'        , REQUIRED],
+    ['RippleEscrow'       , REQUIRED],
+    ['CreateCode'         , OPTIONAL],
+    ['FundCode'           , OPTIONAL],
+    ['RemoveCode'         , OPTIONAL],
+    ['ExpireCode'         , OPTIONAL]
   ]),
   RemoveContract: [10].concat(base, [
-    [ 'Target'             , REQUIRED ]
+    ['Target'             , REQUIRED]
   ]),
   EnableFeature: [100].concat(base, [
-    [ 'Feature'            , REQUIRED ]
+    ['Feature'            , REQUIRED]
   ]),
   EnableAmendment: [100].concat(base, [
-    [ 'Amendment'          , REQUIRED ]
+    ['Amendment'          , REQUIRED]
   ]),
   SetFee: [101].concat(base, [
-    [ 'BaseFee'            , REQUIRED ],
-    [ 'ReferenceFeeUnits'  , REQUIRED ],
-    [ 'ReserveBase'        , REQUIRED ],
-    [ 'ReserveIncrement'   , REQUIRED ]
+    ['BaseFee'            , REQUIRED],
+    ['ReferenceFeeUnits'  , REQUIRED],
+    ['ReserveBase'        , REQUIRED],
+    ['ReserveIncrement'   , REQUIRED]
   ]),
   TicketCreate: [10].concat(base, [
-    [ 'Target'             , OPTIONAL ],
-    [ 'Expiration'         , OPTIONAL ]
+    ['Target'             , OPTIONAL],
+    ['Expiration'         , OPTIONAL]
   ]),
   TicketCancel: [11].concat(base, [
-    [ 'TicketID'           , REQUIRED ]
+    ['TicketID'           , REQUIRED]
+  ]),
+  SignerListSet: [12].concat(base, [
+    ['SignerQuorum', REQUIRED],
+    ['SignerEntries', OPTIONAL]
+  ]),
+  SuspendedPaymentCreate: [1].concat(base, [
+    ['Destination'        , REQUIRED],
+    ['Amount'             , REQUIRED],
+    ['Digest'             , OPTIONAL],
+    ['CancelAfter'        , OPTIONAL],
+    ['FinishAfter'        , OPTIONAL],
+    ['DestinationTag'     , OPTIONAL]
+  ]),
+  SuspendedPaymentFinish: [2].concat(base, [
+    ['Owner'              , REQUIRED],
+    ['OfferSequence'      , REQUIRED],
+    ['Method'             , OPTIONAL],
+    ['Digest'             , OPTIONAL],
+    ['Proof'              , OPTIONAL]
+  ]),
+  SuspendedPaymentCancel: [4].concat(base, [
+    ['Owner'              , REQUIRED],
+    ['OfferSequence'      , REQUIRED]
   ])
 };
 
@@ -396,14 +431,22 @@ exports.ledger = {
     ['LedgerIndex',         OPTIONAL],
     ['Balance',             REQUIRED],
     ['LowLimit',            REQUIRED],
-    ['HighLimit',           REQUIRED]])
+    ['HighLimit',           REQUIRED]]),
+  SignerList: [83].concat(sleBase,[
+    ['OwnerNode',           REQUIRED],
+    ['SignerQuorum',        REQUIRED],
+    ['SignerEntries',       REQUIRED],
+    ['SignerListID',        REQUIRED],
+    ['PreviousTxnID',       REQUIRED],
+    ['PreviousTxnLgrSeq',   REQUIRED]
+  ])
 };
 
 exports.metadata = [
-  [ 'DeliveredAmount'      , OPTIONAL ],
-  [ 'TransactionIndex'     , REQUIRED ],
-  [ 'TransactionResult'    , REQUIRED ],
-  [ 'AffectedNodes'        , REQUIRED ]
+  ['DeliveredAmount'      , OPTIONAL],
+  ['TransactionIndex'     , REQUIRED],
+  ['TransactionResult'    , REQUIRED],
+  ['AffectedNodes'        , REQUIRED]
 ];
 
 exports.ter = {
@@ -423,7 +466,7 @@ exports.ter = {
   tecNO_LINE_REDUNDANT     : 127,
   tecPATH_DRY              : 128,
   tecUNFUNDED              : 129,  // Deprecated, old ambiguous unfunded.
-  tecMASTER_DISABLED       : 130,
+  tecNO_ALTERNATIVE_KEY    : 130,
   tecNO_REGULAR_KEY        : 131,
   tecOWNERS                : 132,
   tecNO_ISSUER             : 133,
@@ -437,5 +480,6 @@ exports.ter = {
   tecINSUFFICIENT_RESERVE  : 141,
   tecNEED_MASTER_KEY       : 142,
   tecDST_TAG_NEEDED        : 143,
-  tecINTERNAL              : 144
+  tecINTERNAL              : 144,
+  tecOVERSIZE              : 145
 };

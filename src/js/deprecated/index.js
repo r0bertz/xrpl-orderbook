@@ -6,10 +6,6 @@ exports.Account = require('./account').Account;
 exports.Transaction = require('./transaction').Transaction;
 exports.Currency = require('./currency').Currency;
 exports.Base = require('./base').Base;
-exports.UInt128 = require('./uint128').UInt128;
-exports.UInt160 = require('./uint160').UInt160;
-exports.UInt256 = require('./uint256').UInt256;
-exports.Seed = require('./seed').Seed;
 exports.Meta = require('./meta').Meta;
 exports.SerializedObject = require('./serializedobject').SerializedObject;
 exports.RippleError = require('./rippleerror').RippleError;
@@ -24,10 +20,12 @@ exports._test = {
   Log: require('./log'),
   PathFind: require('./pathfind').PathFind,
   TransactionManager: require('./transactionmanager').TransactionManager,
-  RangeSet: require('./rangeset').RangeSet
+  RangeSet: require('./rangeset').RangeSet,
+  HashPrefixes: require('./hashprefixes'),
+  UInt128: require('./uint128').UInt128,
+  UInt160: require('./uint160').UInt160,
+  UInt256: require('./uint256').UInt256,
+  constants: require('./constants')
 };
 
 exports.types = require('./serializedtypes');
-
-// This patches remote with legacy support for positional arguments
-require('./legacy-support.js')(exports);

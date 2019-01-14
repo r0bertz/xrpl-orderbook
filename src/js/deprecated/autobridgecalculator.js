@@ -2,7 +2,6 @@
 
 const _ = require('lodash');
 const assert = require('assert');
-const UInt160 = require('./uint160').UInt160;
 const Amount = require('./amount').Amount;
 const Utils = require('./orderbookutils');
 
@@ -18,9 +17,12 @@ function assertValidLegOneOffer(legOneOffer, message) {
 }
 
 function AutobridgeCalculator(currencyGets, currencyPays,
-  legOneOffers, legTwoOffers, issuerGets, issuerPays) {
+  legOneOffers, legTwoOffers, issuerGets, issuerPays
+) {
   this._currencyGets = currencyGets;
   this._currencyPays = currencyPays;
+  this._currencyGetsHex = currencyGets.to_hex();
+  this._currencyPaysHex = currencyPays.to_hex();
   this._issuerGets = issuerGets;
   this._issuerPays = issuerPays;
   this.legOneOffers = _.cloneDeep(legOneOffers);
@@ -29,21 +31,54 @@ function AutobridgeCalculator(currencyGets, currencyPays,
   this._ownerFundsLeftover = {};
 }
 
+const NULL_AMOUNT = Utils.normalizeAmount('0');
+
 /**
  * Calculates an ordered array of autobridged offers by quality
  *
  * @return {Array}
  */
 
-AutobridgeCalculator.prototype.calculate = function() {
-  let legOnePointer = 0;
-  let legTwoPointer = 0;
+AutobridgeCalculator.prototype.calculate = function(callback) {
 
-  let offersAutobridged = [];
+  const legOnePointer = 0;
+  const legTwoPointer = 0;
+
+  const offersAutobridged = [];
 
   this.clearOwnerFundsLeftover();
 
+  this._calculateInternal(legOnePointer, legTwoPointer, offersAutobridged,
+    callback);
+};
+
+AutobridgeCalculator.prototype._calculateInternal = function(
+  legOnePointer_, legTwoPointer_, offersAutobridged, callback
+) {
+
+  // Amount class is calling _check_limits after each operation in strict mode,
+  // and _check_limits is very computationally expensive, so we turning it off
+  // whle doing calculations
+  this._oldMode = Amount.strict_mode;
+  Amount.strict_mode = false;
+
+  let legOnePointer = legOnePointer_;
+  let legTwoPointer = legTwoPointer_;
+
+  const startTime = Date.now();
+
   while (this.legOneOffers[legOnePointer] && this.legTwoOffers[legTwoPointer]) {
+    // manually implement cooperative multitasking that yields after 30ms
+    // of execution so user's browser stays responsive
+    const lasted = (Date.now() - startTime);
+    if (lasted > 30) {
+      setTimeout(this._calculateInternal.bind(this, legOnePointer,
+        legTwoPointer, offersAutobridged, callback), 0);
+
+      Amount.strict_mode = this._oldMode;
+      return;
+    }
+
     const legOneOffer = this.legOneOffers[legOnePointer];
     const legTwoOffer = this.legTwoOffers[legTwoPointer];
     const leftoverFunds = this.getLeftoverOwnerFunds(legOneOffer.Account);
@@ -55,8 +90,10 @@ AutobridgeCalculator.prototype.calculate = function() {
       this.adjustLegOneFundedAmount(legOneOffer);
     }
 
-    const legOneTakerGetsFunded = Utils.getOfferTakerGetsFunded(legOneOffer);
-    const legTwoTakerPaysFunded = Utils.getOfferTakerPaysFunded(legTwoOffer);
+    const legOneTakerGetsFunded = Utils.getOfferTakerGetsFunded(legOneOffer,
+      this._currencyPays, this._issuerPays);
+    const legTwoTakerPaysFunded = Utils.getOfferTakerPaysFunded(legTwoOffer,
+      this._currencyGets, this._issuerGets);
 
     if (legOneTakerGetsFunded.is_zero()) {
       legOnePointer++;
@@ -70,14 +107,17 @@ AutobridgeCalculator.prototype.calculate = function() {
       continue;
     }
 
-    if (legOneTakerGetsFunded.compareTo(legTwoTakerPaysFunded) > 0) {
+    //  using private fields for speed
+    if (legOneTakerGetsFunded._value.comparedTo(
+      legTwoTakerPaysFunded._value) > 0) {
       autobridgedOffer = this.getAutobridgedOfferWithClampedLegOne(
         legOneOffer,
         legTwoOffer
       );
 
       legTwoPointer++;
-    } else if (legTwoTakerPaysFunded.compareTo(legOneTakerGetsFunded) > 0) {
+    } else if (legTwoTakerPaysFunded._value.comparedTo(
+      legOneTakerGetsFunded._value) > 0) {
       autobridgedOffer = this.getAutobridgedOfferWithClampedLegTwo(
         legOneOffer,
         legTwoOffer
@@ -97,7 +137,8 @@ AutobridgeCalculator.prototype.calculate = function() {
     offersAutobridged.push(autobridgedOffer);
   }
 
-  return offersAutobridged;
+  Amount.strict_mode = this._oldMode;
+  callback(offersAutobridged);
 };
 
 /**
@@ -112,15 +153,20 @@ AutobridgeCalculator.prototype.calculate = function() {
 
 AutobridgeCalculator.prototype.getAutobridgedOfferWithClampedLegOne =
 function(legOneOffer, legTwoOffer) {
-  const legOneTakerGetsFunded = Utils.getOfferTakerGetsFunded(legOneOffer);
-  const legTwoTakerPaysFunded = Utils.getOfferTakerPaysFunded(legTwoOffer);
-  const legOneQuality = Utils.getOfferQuality(legOneOffer, this._currencyGets);
+  const legOneTakerGetsFunded = Utils.getOfferTakerGetsFunded(legOneOffer,
+    this._currencyPays, this._issuerPays);
+  const legTwoTakerPaysFunded = Utils.getOfferTakerPaysFunded(legTwoOffer,
+    this._currencyGets, this._issuerGets);
+  const legOneQuality = Utils.getOfferQuality(legOneOffer, this._currencyGets,
+    this._currencyPays, this._issuerPays);
 
-  const autobridgedTakerGets = Utils.getOfferTakerGetsFunded(legTwoOffer);
+  const autobridgedTakerGets = Utils.getOfferTakerGetsFunded(legTwoOffer,
+    this._currencyGets, this._issuerGets);
   const autobridgedTakerPays = legTwoTakerPaysFunded.multiply(legOneQuality);
 
   if (legOneOffer.Account === legTwoOffer.Account) {
-    const legOneTakerGets = Utils.getOfferTakerGets(legOneOffer);
+    const legOneTakerGets = Utils.getOfferTakerGets(legOneOffer,
+      this._currencyPays, this._issuerPays);
     const updatedTakerGets = legOneTakerGets.subtract(legTwoTakerPaysFunded);
 
     this.setLegOneTakerGets(legOneOffer, updatedTakerGets);
@@ -152,15 +198,20 @@ function(legOneOffer, legTwoOffer) {
 
 AutobridgeCalculator.prototype.getAutobridgedOfferWithClampedLegTwo =
 function(legOneOffer, legTwoOffer) {
-  const legOneTakerGetsFunded = Utils.getOfferTakerGetsFunded(legOneOffer);
-  const legTwoTakerPaysFunded = Utils.getOfferTakerPaysFunded(legTwoOffer);
-  const legTwoQuality = Utils.getOfferQuality(legTwoOffer, this._currencyGets);
+  const legOneTakerGetsFunded = Utils.getOfferTakerGetsFunded(legOneOffer,
+    this._currencyPays, this._issuerPays);
+  const legTwoTakerPaysFunded = Utils.getOfferTakerPaysFunded(legTwoOffer,
+    this._currencyGets, this._issuerGets);
+  const legTwoQuality = Utils.getOfferQuality(legTwoOffer, this._currencyGets,
+    this._currencyGets, this._issuerGets);
 
   const autobridgedTakerGets = legOneTakerGetsFunded.divide(legTwoQuality);
-  const autobridgedTakerPays = Utils.getOfferTakerPaysFunded(legOneOffer);
+  const autobridgedTakerPays = Utils.getOfferTakerPaysFunded(legOneOffer,
+    this._currencyPays, this._issuerPays);
 
   // Update funded amount since leg two offer was not completely consumed
-  legTwoOffer.taker_gets_funded = Utils.getOfferTakerGetsFunded(legTwoOffer)
+  legTwoOffer.taker_gets_funded = Utils.getOfferTakerGetsFunded(legTwoOffer,
+    this._currencyGets, this._issuerGets)
     .subtract(autobridgedTakerGets)
     .to_text();
   legTwoOffer.taker_pays_funded = legTwoTakerPaysFunded
@@ -184,8 +235,10 @@ function(legOneOffer, legTwoOffer) {
 
 AutobridgeCalculator.prototype.getAutobridgedOfferWithoutClamps =
 function(legOneOffer, legTwoOffer) {
-  const autobridgedTakerGets = Utils.getOfferTakerGetsFunded(legTwoOffer);
-  const autobridgedTakerPays = Utils.getOfferTakerPaysFunded(legOneOffer);
+  const autobridgedTakerGets = Utils.getOfferTakerGetsFunded(legTwoOffer,
+    this._currencyGets, this._issuerGets);
+  const autobridgedTakerPays = Utils.getOfferTakerPaysFunded(legOneOffer,
+    this._currencyPays, this._issuerPays);
 
   return this.formatAutobridgedOffer(
     autobridgedTakerGets,
@@ -210,9 +263,7 @@ AutobridgeCalculator.prototype.clearOwnerFundsLeftover = function() {
  */
 
 AutobridgeCalculator.prototype.resetOwnerFundsLeftover = function(account) {
-  assert(UInt160.is_valid(account), 'Account is invalid');
-
-  this._ownerFundsLeftover[account] = Utils.normalizeAmount('0');
+  this._ownerFundsLeftover[account] = NULL_AMOUNT.clone();
 
   return this._ownerFundsLeftover[account];
 };
@@ -226,12 +277,10 @@ AutobridgeCalculator.prototype.resetOwnerFundsLeftover = function(account) {
  */
 
 AutobridgeCalculator.prototype.getLeftoverOwnerFunds = function(account) {
-  assert(UInt160.is_valid(account), 'Account is invalid');
-
   let amount = this._ownerFundsLeftover[account];
 
   if (!amount) {
-    amount = Utils.normalizeAmount('0');
+    amount = NULL_AMOUNT.clone();
   }
 
   return amount;
@@ -248,7 +297,6 @@ AutobridgeCalculator.prototype.getLeftoverOwnerFunds = function(account) {
 
 AutobridgeCalculator.prototype.addLeftoverOwnerFunds =
 function(account, amount) {
-  assert(UInt160.is_valid(account), 'Account is invalid');
   assert(amount instanceof Amount, 'Amount is invalid');
 
   this._ownerFundsLeftover[account] = this.getLeftoverOwnerFunds(account)
@@ -266,7 +314,6 @@ function(account, amount) {
 
 AutobridgeCalculator.prototype.setLeftoverOwnerFunds =
 function(account, amount) {
-  assert(UInt160.is_valid(account), 'Account is invalid');
   assert(amount instanceof Amount, 'Amount is invalid');
 
   this._ownerFundsLeftover[account] = amount;
@@ -291,13 +338,13 @@ function(takerGets, takerPays) {
 
   autobridgedOffer.TakerGets = {
     value: takerGets.to_text(),
-    currency: this._currencyGets.to_hex(),
+    currency: this._currencyGetsHex,
     issuer: this._issuerGets
   };
 
   autobridgedOffer.TakerPays = {
     value: takerPays.to_text(),
-    currency: this._currencyPays.to_hex(),
+    currency: this._currencyPaysHex,
     issuer: this._issuerPays
   };
 
@@ -308,7 +355,9 @@ function(takerGets, takerPays) {
 
   autobridgedOffer.autobridged = true;
 
-  autobridgedOffer.BookDirectory = Utils.convertOfferQualityToHex(quality);
+  autobridgedOffer.BookDirectory =
+    Utils.convertOfferQualityToHexFromText(autobridgedOffer.quality);
+  autobridgedOffer.qualityHex = autobridgedOffer.BookDirectory;
 
   return autobridgedOffer;
 };
@@ -325,11 +374,13 @@ function(takerGets, takerPays) {
 AutobridgeCalculator.prototype.unclampLegOneOwnerFunds = function(legOneOffer) {
   assertValidLegOneOffer(legOneOffer, 'Leg one offer is invalid');
 
-  legOneOffer.initTakerGetsFunded = Utils.getOfferTakerGetsFunded(legOneOffer);
+  legOneOffer.initTakerGetsFunded = Utils.getOfferTakerGetsFunded(legOneOffer,
+    this._currencyPays, this._issuerPays);
 
   this.setLegOneTakerGetsFunded(
     legOneOffer,
-    Utils.getOfferTakerGets(legOneOffer)
+    Utils.getOfferTakerGets(legOneOffer, this._currencyPays,
+      this._issuerPays)
   );
 };
 
@@ -350,7 +401,8 @@ AutobridgeCalculator.prototype.unclampLegOneOwnerFunds = function(legOneOffer) {
 AutobridgeCalculator.prototype.clampLegOneOwnerFunds = function(legOneOffer) {
   assertValidLegOneOffer(legOneOffer, 'Leg one offer is invalid');
 
-  const takerGets = Utils.getOfferTakerGets(legOneOffer);
+  const takerGets = Utils.getOfferTakerGets(legOneOffer, this._currencyPays,
+    this._issuerPays);
 
   if (takerGets.compareTo(legOneOffer.initTakerGetsFunded) > 0) {
     // After clamping, TakerGets is still greater than initial funded amount
@@ -375,12 +427,16 @@ function(legOneOffer) {
   assertValidLegOneOffer(legOneOffer, 'Leg one offer is invalid');
   assert(!legOneOffer.is_fully_funded, 'Leg one offer cannot be fully funded');
 
-  const fundedSum = Utils.getOfferTakerGetsFunded(legOneOffer)
+  const fundedSum = Utils.getOfferTakerGetsFunded(legOneOffer,
+    this._currencyPays, this._issuerPays)
     .add(this.getLeftoverOwnerFunds(legOneOffer.Account));
 
-  if (fundedSum.compareTo(Utils.getOfferTakerGets(legOneOffer)) >= 0) {
+  if (fundedSum.compareTo(Utils.getOfferTakerGets(legOneOffer,
+    this._currencyPays, this._issuerPays)) >= 0
+  ) {
     // There are enough extra funds to fully fund the offer
-    const legOneTakerGets = Utils.getOfferTakerGets(legOneOffer);
+    const legOneTakerGets = Utils.getOfferTakerGets(legOneOffer,
+      this._currencyPays, this._issuerPays);
     const updatedLeftover = fundedSum.subtract(legOneTakerGets);
 
     this.setLegOneTakerGetsFunded(legOneOffer, legOneTakerGets);
@@ -407,8 +463,9 @@ function setLegOneTakerGetsFunded(legOneOffer, takerGetsFunded) {
 
   legOneOffer.taker_gets_funded = takerGetsFunded.to_text();
   legOneOffer.taker_pays_funded = takerGetsFunded
-    .multiply(Utils.getOfferQuality(legOneOffer, this._currencyGets))
-    .to_text();
+    .multiply(Utils.getOfferQuality(legOneOffer, this._currencyGets,
+      this._currencyPays, this._issuerPays))
+      .to_text();
 
   if (legOneOffer.taker_gets_funded === legOneOffer.TakerGets.value) {
     legOneOffer.is_fully_funded = true;
@@ -428,10 +485,11 @@ function(legOneOffer, takerGets) {
   assertValidLegOneOffer(legOneOffer, 'Leg one offer is invalid');
   assert(takerGets instanceof Amount, 'Taker gets funded is invalid');
 
-  const legOneQuality = Utils.getOfferQuality(legOneOffer, this._currencyGets);
+  const legOneQuality = Utils.getOfferQuality(legOneOffer, this._currencyGets,
+    this._currencyPays, this._issuerPays);
 
   legOneOffer.TakerGets = takerGets.to_text();
-  legOneOffer.TakerPays = takerGets.multiply(legOneQuality);
+  legOneOffer.TakerPays = takerGets.multiply(legOneQuality).to_json();
 };
 
 module.exports = AutobridgeCalculator;

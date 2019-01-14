@@ -1,18 +1,19 @@
 'use strict';
 
+const assert = require('assert');
 const util = require('util');
-const lodash = require('lodash');
+const _ = require('lodash');
+const {deriveKeypair, sign} = require('ripple-keypairs');
 const EventEmitter = require('events').EventEmitter;
 const utils = require('./utils');
 const sjclcodec = require('sjcl-codec');
 const Amount = require('./amount').Amount;
-const Currency = require('./amount').Currency;
-const UInt160 = require('./amount').UInt160;
-const Seed = require('./seed').Seed;
+const Currency = require('./currency').Currency;
 const SerializedObject = require('./serializedobject').SerializedObject;
 const RippleError = require('./rippleerror').RippleError;
 const hashprefixes = require('./hashprefixes');
 const log = require('./log').internal.sub('transaction');
+const {isValidAddress, decodeAddress} = require('ripple-address-codec');
 
 /**
  * @constructor Transaction
@@ -43,6 +44,7 @@ function Transaction(remote) {
   ? this.remote.automatic_resubmission
   : true;
   this._maxFee = remoteExists ? this.remote.max_fee : undefined;
+  this._lastLedgerOffset = remoteExists ? this.remote.last_ledger_offset : 3;
   this.state = 'unsubmitted';
   this.finalized = false;
   this.previousSigningHash = undefined;
@@ -199,7 +201,7 @@ Transaction.from_json = function(j) {
 
 Transaction.prototype.setJson =
 Transaction.prototype.parseJson = function(v) {
-  this.tx_json = v;
+  this.tx_json = _.merge({}, v);
   return this;
 };
 
@@ -358,7 +360,6 @@ Transaction.prototype._computeFee = function() {
   });
 
   const midInd = Math.floor(fees.length / 2);
-
   const median = fees.length % 2 === 0
   ? Math.floor(0.5 + (fees[midInd] + fees[midInd - 1]) / 2)
   : fees[midInd];
@@ -377,56 +378,67 @@ Transaction.prototype._computeFee = function() {
  * return `false`
  */
 
+Transaction.prototype.err = function(error, errorMessage) {
+  this.emit('error', new RippleError(error, errorMessage));
+  return false;
+};
+
 Transaction.prototype.complete = function() {
-  if (this.remote) {
-    if (!this.remote.trusted && !this.remote.local_signing) {
-      this.emit('error', new RippleError(
-        'tejServerUntrusted', 'Attempt to give secret to untrusted server'));
-      return false;
-    }
+  // Auto-fill the secret
+  this._secret = this._secret || this.getSecret();
+
+  if (_.isUndefined(this._secret)) {
+    return this.err('tejSecretUnknown', 'Missing secret');
   }
 
-  if (!this._secret) {
-    this._secret = this.getSecret();
+  if (this.remote && !(this.remote.local_signing || this.remote.trusted)) {
+    return this.err(
+      'tejServerUntrusted',
+      'Attempt to give secret to untrusted server');
   }
 
-  // Try to auto-fill the secret
-  if (!this._secret) {
-    this.emit('error', new RippleError('tejSecretUnknown', 'Missing secret'));
-    return false;
-  }
-
-  if (typeof this.tx_json.SigningPubKey === 'undefined') {
+  if (_.isUndefined(this.tx_json.SigningPubKey)) {
     try {
-      const seed = Seed.from_json(this._secret);
-      const key = seed.get_key();
-      this.tx_json.SigningPubKey = key.pubKeyHex();
-    } catch(e) {
-      this.emit('error', new RippleError(
-        'tejSecretInvalid', 'Invalid secret'));
-      return false;
+      this.setSigningPubKey(this.getSigningPubKey());
+    } catch (e) {
+      return this.err('tejSecretInvalid', 'Invalid secret');
     }
   }
 
-  // If the Fee hasn't been set, one needs to be computed by
-  // an assigned server
-  if (this.remote && typeof this.tx_json.Fee === 'undefined') {
-    if (this.remote.local_fee || !this.remote.trusted) {
-      this.tx_json.Fee = this._computeFee();
-      if (!this.tx_json.Fee) {
-        this.emit('error', new RippleError('tejUnconnected'));
-        return false;
+  // Auto-fill transaction Fee
+  if (_.isUndefined(this.tx_json.Fee)) {
+    if (this.remote && (this.remote.local_fee || !this.remote.trusted)) {
+      const computedFee = this._computeFee();
+
+      if (!computedFee) {
+        // Unable to compute fee due to no connected servers
+        return this.err('tejUnconnected');
       }
+
+      this.tx_json.Fee = computedFee;
     }
   }
 
   if (Number(this.tx_json.Fee) > this._maxFee) {
-    this.emit('error', new RippleError(
-      'tejMaxFeeExceeded', 'Max fee exceeded'));
-    return false;
+    return this.err('tejMaxFeeExceeded', 'Max fee exceeded');
   }
 
   // Set canonical flag - this enables canonicalized signature checking
+  this.setCanonicalFlag();
+
+  return this.tx_json;
+};
+
+Transaction.prototype.getSigningPubKey = function(secret) {
+  return deriveKeypair(secret || this._secret).publicKey;
+};
+
+Transaction.prototype.setSigningPubKey = function(key) {
+  this.tx_json.SigningPubKey = key;
+  return this;
+};
+
+Transaction.prototype.setCanonicalFlag = function() {
   if (this.remote && this.remote.local_signing && this.canonical) {
     this.tx_json.Flags |= Transaction.flags.Universal.FullyCanonicalSig;
 
@@ -435,7 +447,7 @@ Transaction.prototype.complete = function() {
     this.tx_json.Flags = this.tx_json.Flags >>> 0;
   }
 
-  return this.tx_json;
+  return this;
 };
 
 Transaction.prototype.serialize = function() {
@@ -450,6 +462,14 @@ Transaction.prototype.signingData = function() {
   const so = new SerializedObject();
   so.append(hashprefixes.HASH_TX_SIGN_BYTES);
   so.parse_json(this.tx_json);
+  return so;
+};
+
+Transaction.prototype.multiSigningData = function(account) {
+  const so = new SerializedObject();
+  so.append(hashprefixes.HASH_TX_MULTISIGN_BYTES);
+  so.parse_json(this.tx_json);
+  so.append(decodeAddress(account));
   return so;
 };
 
@@ -469,12 +489,13 @@ Transaction.prototype.hash = function(prefix_, asUINT256, serialized) {
   return asUINT256 ? hash : hash.to_hex();
 };
 
-Transaction.prototype.sign = function() {
-  const seed = Seed.from_json(this._secret);
+Transaction.prototype.sign = function(secret) {
+  if (this.hasMultiSigners()) {
+    return this;
+  }
+
   const prev_sig = this.tx_json.TxnSignature;
-
   delete this.tx_json.TxnSignature;
-
   const hash = this.signingHash();
 
   // If the hash is the same, we can re-use the previous signature
@@ -483,9 +504,9 @@ Transaction.prototype.sign = function() {
     return this;
   }
 
-  const key = seed.get_key();
-  const hex = key.signHex(this.signingData().buffer);
-  this.tx_json.TxnSignature = hex;
+  const keypair = deriveKeypair(secret || this._secret);
+  this.tx_json.TxnSignature = sign(this.signingData().buffer,
+    keypair.privateKey);
   this.previousSigningHash = hash;
 
   return this;
@@ -499,7 +520,7 @@ Transaction.prototype.sign = function() {
  */
 
 Transaction.prototype.addId = function(id) {
-  if (!lodash.contains(this.submittedIDs, id)) {
+  if (!_.contains(this.submittedIDs, id)) {
     this.submittedIDs.unshift(id);
   }
 };
@@ -515,7 +536,7 @@ Transaction.prototype.addId = function(id) {
  */
 
 Transaction.prototype.findId = function(cache) {
-  const cachedTransactionID = lodash.detect(this.submittedIDs, function(id) {
+  const cachedTransactionID = _.detect(this.submittedIDs, function(id) {
     return cache.hasOwnProperty(id);
   });
   return cache[cachedTransactionID];
@@ -541,19 +562,30 @@ Transaction.prototype.clientID = function(id) {
   return this;
 };
 
-/**
- * Set LastLedgerSequence as the absolute last ledger sequence the transaction
- * is valid for. LastLedgerSequence is set automatically if not set using this
- * method
- *
- * @param {Number} ledger index
- */
+Transaction.prototype.setLastLedgerSequenceOffset = function(offset) {
+  this._lastLedgerOffset = offset;
+};
 
-Transaction.prototype.setLastLedgerSequence =
+Transaction.prototype.getLastLedgerSequenceOffset = function() {
+  return this._lastLedgerOffset;
+};
+
+Transaction.prototype.lastLedger =
 Transaction.prototype.setLastLedger =
-Transaction.prototype.lastLedger = function(sequence) {
-  this._setUInt32('LastLedgerSequence', sequence);
+Transaction.prototype.setLastLedgerSequence = function(sequence) {
+  if (!_.isUndefined(sequence)) {
+    this._setUInt32('LastLedgerSequence', sequence);
+  } else {
+    // Autofill LastLedgerSequence
+    assert(this.remote, 'Unable to set LastLedgerSequence, missing Remote');
+
+    this._setUInt32('LastLedgerSequence',
+                    this.remote.getLedgerSequenceSync() + 1
+                    + this.getLastLedgerSequenceOffset());
+  }
+
   this._setLastLedger = true;
+
   return this;
 };
 
@@ -582,9 +614,24 @@ Transaction.prototype.maxFee = function(fee) {
  * @returns {Transaction} calling instance for chaining
  */
 Transaction.prototype.setFixedFee = function(fee) {
-  if (typeof fee === 'number' && fee >= 0) {
-    this._setFixedFee = true;
+  return this.setFee(fee, {fixed: true});
+};
+
+Transaction.prototype.setFee = function(fee, options = {}) {
+  if (_.isNumber(fee) && fee >= 0) {
     this.tx_json.Fee = String(fee);
+    if (options.fixed) {
+      this._setFixedFee = true;
+    }
+  }
+
+  return this;
+};
+
+Transaction.prototype.setSequence = function(sequence) {
+  if (_.isNumber(sequence)) {
+    this._setUInt32('Sequence', sequence);
+    this._setSequence = true;
   }
 
   return this;
@@ -606,7 +653,7 @@ Transaction.prototype.secret = function(secret) {
 };
 
 Transaction.prototype.setType = function(type) {
-  if (lodash.isUndefined(Transaction.formats, type)) {
+  if (_.isUndefined(Transaction.formats, type)) {
     throw new Error('TransactionType must be a valid transaction type');
   }
 
@@ -616,14 +663,14 @@ Transaction.prototype.setType = function(type) {
 };
 
 Transaction.prototype._setUInt32 = function(name, value, options_) {
-  const options = lodash.merge({}, options_);
+  const options = _.merge({}, options_);
   const isValidUInt32 = typeof value === 'number'
   && value >= 0 && value < Math.pow(256, 4);
 
   if (!isValidUInt32) {
     throw new Error(name + ' must be a valid UInt32');
   }
-  if (!lodash.isUndefined(options.min_value) && value < options.min_value) {
+  if (!_.isUndefined(options.min_value) && value < options.min_value) {
     throw new Error(name + ' must be >= ' + options.min_value);
   }
 
@@ -644,14 +691,10 @@ Transaction.prototype.sourceTag = function(tag) {
 };
 
 Transaction.prototype._setAccount = function(name, value) {
-  const uInt160 = UInt160.from_json(value);
-
-  if (!uInt160.is_valid()) {
+  if (!isValidAddress(value)) {
     throw new Error(name + ' must be a valid account');
   }
-
-  this.tx_json[name] = uInt160.to_json();
-
+  this.tx_json[name] = value;
   return this;
 };
 
@@ -660,7 +703,7 @@ Transaction.prototype.setAccount = function(account) {
 };
 
 Transaction.prototype._setAmount = function(name, amount, options_) {
-  const options = lodash.merge({no_native: false}, options_);
+  const options = _.merge({no_native: false}, options_);
   const parsedAmount = Amount.from_json(amount);
 
   if (parsedAmount.is_negative()) {
@@ -675,7 +718,7 @@ Transaction.prototype._setAmount = function(name, amount, options_) {
   if (!(isNative || parsedAmount.currency().is_valid())) {
     throw new Error(name + ' must have a valid currency');
   }
-  if (!(isNative || parsedAmount.issuer().is_valid())) {
+  if (!(isNative || isValidAddress(parsedAmount.issuer()))) {
     throw new Error(name + ' must have a valid issuer');
   }
 
@@ -689,7 +732,7 @@ Transaction.prototype._setHash256 = function(name, value, options_) {
     throw new Error(name + ' must be a valid Hash256');
   }
 
-  const options = lodash.merge({pad: false}, options_);
+  const options = _.merge({pad: false}, options_);
   let hash256 = value;
 
   if (options.pad) {
@@ -752,6 +795,11 @@ Transaction.prototype.setFlags = function(flags) {
   return this;
 };
 
+function convertStringToHex(string) {
+  const utf8String = sjclcodec.utf8String.toBits(string);
+  return sjclcodec.hex.fromBits(utf8String).toUpperCase();
+}
+
 /**
  * Add a Memo to transaction.
  *
@@ -769,18 +817,13 @@ Transaction.prototype.addMemo = function(options_) {
   let options;
 
   if (typeof options_ === 'object') {
-    options = lodash.merge({}, options_);
+    options = _.merge({}, options_);
   } else {
     options = {
       memoType: arguments[0],
       memoFormat: arguments[1],
       memoData: arguments[2]
     };
-  }
-
-  function convertStringToHex(string) {
-    const utf8String = sjclcodec.utf8String.toBits(string);
-    return sjclcodec.hex.fromBits(utf8String).toUpperCase();
   }
 
   const memo = {};
@@ -790,7 +833,7 @@ Transaction.prototype.addMemo = function(options_) {
   let memoData = options.memoData;
 
   if (memoType) {
-    if (!(lodash.isString(memoType) && memoRegex.test(memoType))) {
+    if (!(_.isString(memoType) && memoRegex.test(memoType))) {
       throw new Error(
         'MemoType must be a string containing only valid URL characters');
     }
@@ -803,7 +846,7 @@ Transaction.prototype.addMemo = function(options_) {
   }
 
   if (memoFormat) {
-    if (!(lodash.isString(memoFormat) && memoRegex.test(memoFormat))) {
+    if (!(_.isString(memoFormat) && memoRegex.test(memoFormat))) {
       throw new Error(
         'MemoFormat must be a string containing only valid URL characters');
     }
@@ -857,15 +900,15 @@ Transaction.prototype.accountSet = function(options_) {
   let options;
 
   if (typeof options_ === 'object') {
-    options = lodash.merge({}, options_);
+    options = _.merge({}, options_);
 
-    if (lodash.isUndefined(options.account)) {
+    if (_.isUndefined(options.account)) {
       options.account = options.src;
     }
-    if (lodash.isUndefined(options.set_flag)) {
+    if (_.isUndefined(options.set_flag)) {
       options.set_flag = options.set;
     }
-    if (lodash.isUndefined(options.clear_flag)) {
+    if (_.isUndefined(options.clear_flag)) {
       options.clear_flag = options.clear;
     }
   } else {
@@ -879,10 +922,10 @@ Transaction.prototype.accountSet = function(options_) {
   this.setType('AccountSet');
   this.setAccount(options.account);
 
-  if (!lodash.isUndefined(options.set_flag)) {
+  if (!_.isUndefined(options.set_flag)) {
     this.setSetFlag(options.set_flag);
   }
-  if (!lodash.isUndefined(options.clear_flag)) {
+  if (!_.isUndefined(options.clear_flag)) {
     this.setClearFlag(options.clear_flag);
   }
 
@@ -899,7 +942,7 @@ Transaction.prototype.setAccountSetFlag = function(name, value) {
     : accountSetFlags['asf' + flagValue];
   }
 
-  if (!lodash.contains(lodash.values(accountSetFlags), flagValue)) {
+  if (!_.contains(_.values(accountSetFlags), flagValue)) {
     throw new Error(name + ' must be a valid AccountSet flag');
   }
 
@@ -956,9 +999,9 @@ Transaction.prototype.setRegularKey = function(options_) {
   let options;
 
   if (typeof options_ === 'object') {
-    options = lodash.merge({}, options_);
+    options = _.merge({}, options_);
 
-    if (lodash.isUndefined(options.account)) {
+    if (_.isUndefined(options.account)) {
       options.account = options.src;
     }
   } else {
@@ -971,7 +1014,7 @@ Transaction.prototype.setRegularKey = function(options_) {
   this.setType('SetRegularKey');
   this.setAccount(options.account);
 
-  if (!lodash.isUndefined(options.regular_key)) {
+  if (!_.isUndefined(options.regular_key)) {
     this._setAccount('RegularKey', options.regular_key);
   }
 
@@ -992,9 +1035,9 @@ Transaction.prototype.rippleLineSet = function(options_) {
   let options;
 
   if (typeof options_ === 'object') {
-    options = lodash.merge({}, options_);
+    options = _.merge({}, options_);
 
-    if (lodash.isUndefined(options.account)) {
+    if (_.isUndefined(options.account)) {
       options.account = options.src;
     }
   } else {
@@ -1009,13 +1052,13 @@ Transaction.prototype.rippleLineSet = function(options_) {
   this.setType('TrustSet');
   this.setAccount(options.account);
 
-  if (!lodash.isUndefined(options.limit)) {
+  if (!_.isUndefined(options.limit)) {
     this.setLimit(options.limit);
   }
-  if (!lodash.isUndefined(options.quality_in)) {
+  if (!_.isUndefined(options.quality_in)) {
     this.setQualityIn(options.quality_in);
   }
-  if (!lodash.isUndefined(options.quality_out)) {
+  if (!_.isUndefined(options.quality_out)) {
     this.setQualityOut(options.quality_out);
   }
 
@@ -1057,12 +1100,12 @@ Transaction.prototype.payment = function(options_) {
   let options;
 
   if (typeof options_ === 'object') {
-    options = lodash.merge({}, options_);
+    options = _.merge({}, options_);
 
-    if (lodash.isUndefined(options.account)) {
+    if (_.isUndefined(options.account)) {
       options.account = options.src || options.from;
     }
-    if (lodash.isUndefined(options.destination)) {
+    if (_.isUndefined(options.destination)) {
       options.destination = options.dst || options.to;
     }
   } else {
@@ -1128,11 +1171,11 @@ Transaction._rewritePath = function(path) {
     const newNode = { };
 
     if (node.hasOwnProperty('account')) {
-      newNode.account = UInt160.json_rewrite(node.account);
+      newNode.account = node.account;
     }
 
     if (node.hasOwnProperty('issuer')) {
-      newNode.issuer = UInt160.json_rewrite(node.issuer);
+      newNode.issuer = node.issuer;
     }
 
     if (node.hasOwnProperty('currency')) {
@@ -1241,18 +1284,18 @@ Transaction.prototype.offerCreate = function(options_) {
   let options;
 
   if (typeof options_ === 'object') {
-    options = lodash.merge({}, options_);
+    options = _.merge({}, options_);
 
-    if (lodash.isUndefined(options.account)) {
+    if (_.isUndefined(options.account)) {
       options.account = options.src;
     }
-    if (lodash.isUndefined(options.taker_pays)) {
+    if (_.isUndefined(options.taker_pays)) {
       options.taker_pays = options.buy;
     }
-    if (lodash.isUndefined(options.taker_gets)) {
+    if (_.isUndefined(options.taker_gets)) {
       options.taker_gets = options.sell;
     }
-    if (lodash.isUndefined(options.offer_sequence)) {
+    if (_.isUndefined(options.offer_sequence)) {
       options.offer_sequence = options.cancel_sequence || options.sequence;
     }
   } else {
@@ -1270,10 +1313,10 @@ Transaction.prototype.offerCreate = function(options_) {
   this.setTakerGets(options.taker_gets);
   this.setTakerPays(options.taker_pays);
 
-  if (!lodash.isUndefined(options.expiration)) {
+  if (!_.isUndefined(options.expiration)) {
     this.setExpiration(options.expiration);
   }
-  if (!lodash.isUndefined(options.offer_sequence)) {
+  if (!_.isUndefined(options.offer_sequence)) {
     this.setOfferSequence(options.offer_sequence);
   }
 
@@ -1311,12 +1354,12 @@ Transaction.prototype.offerCancel = function(options_) {
   let options;
 
   if (typeof options_ === 'object') {
-    options = lodash.merge({}, options_);
+    options = _.merge({}, options_);
 
-    if (lodash.isUndefined(options.account)) {
+    if (_.isUndefined(options.account)) {
       options.account = options.src;
     }
-    if (lodash.isUndefined(options.offer_sequence)) {
+    if (_.isUndefined(options.offer_sequence)) {
       options.offer_sequence = options.sequence || options.cancel_sequence;
     }
   } else {
@@ -1333,16 +1376,48 @@ Transaction.prototype.offerCancel = function(options_) {
   return this;
 };
 
+Transaction._prepareSignerEntry = function(signer) {
+  const {account, weight} = signer;
+
+  assert(isValidAddress(account), 'Signer account invalid');
+  assert(_.isNumber(weight), 'Signer weight missing');
+  assert(weight > 0 && weight <= 65535, 'Signer weight must be 1-65535');
+
+  return {
+    SignerEntry: {
+      Account: account,
+      SignerWeight: weight
+    }
+  };
+};
+
+Transaction.prototype.setSignerList = function(options = {}) {
+  this.setType('SignerListSet');
+  this.setAccount(options.account);
+  this.setSignerQuorum(options.signerQuorum);
+
+  if (!_.isEmpty(options.signers)) {
+    this.tx_json.SignerEntries =
+      options.signers.map(Transaction._prepareSignerEntry);
+  }
+
+  return this;
+};
+
+Transaction.prototype.setSignerQuorum = function(quorum) {
+  this._setUInt32('SignerQuorum', quorum);
+};
+
 /**
  * Submit transaction to the network
  *
  * @param [Function] callback
  */
 
-Transaction.prototype.submit = function(callback) {
+Transaction.prototype.submit = function(callback = function() {}) {
   const self = this;
 
-  this.callback = (typeof callback === 'function') ? callback : function() {};
+  this.callback = callback;
 
   this._errorHandler = function transactionError(error_, message) {
     let error = error_;
@@ -1391,7 +1466,7 @@ Transaction.prototype.summary = function() {
     submissionAttempts: this.attempts,
     submitIndex: this.submitIndex,
     initialSubmitIndex: this.initialSubmitIndex,
-    lastLedgerSequence: this.lastLedgerSequence,
+    lastLedgerSequence: this.tx_json.LastLedgerSequence,
     state: this.state,
     finalized: this.finalized
   };
@@ -1413,6 +1488,177 @@ Transaction.prototype.summary = function() {
   return txSummary;
 };
 
-exports.Transaction = Transaction;
+/**
+ * Construct a 'SuspendedPaymentCreate' transaction
+ *
+ * Relevant setters:
+ *  - setSourceTag()
+ *  - setFlags()
+ *  - setDigest()
+ *  - setAllowCancelAfter()
+ *  - setAllowExecuteAfter()
+ *
+ *  @param {String} options.account source account
+ *  @param {String} options.destination account
+ *  @param {Amount} options.amount payment amount
+ */
 
-// vim:sw=2:sts=2:ts=8:et
+Transaction.prototype.suspendedPaymentCreate = function(options) {
+  this.setType('SuspendedPaymentCreate');
+  this.setAccount(options.account);
+  this.setDestination(options.destination);
+  this.setAmount(options.amount);
+  return this;
+};
+
+/**
+ * Construct a 'SuspendedPaymentFinish' transaction
+ *
+ * Relevant setters:
+ *  - setSourceTag()
+ *  - setFlags()
+ *  - setOwner()
+ *  - setOfferSequence()
+ *  - setMethod()
+ *  - setDigest()
+ *  - setProof()
+ *
+ *  @param {String} options.account source account
+ *  @param {String} options.owner SuspendedPaymentCreate's Account
+ *  @param {Integer} options.paymentSequence SuspendedPaymentCreate's Sequence
+ */
+
+Transaction.prototype.suspendedPaymentFinish = function(options) {
+  this.setType('SuspendedPaymentFinish');
+  this.setAccount(options.account);
+  this.setOwner(options.owner);
+  this.setOfferSequence(options.paymentSequence);
+  return this;
+};
+
+/**
+ * Construct a 'SuspendedPaymentCancel' transaction
+ *
+ * Relevant setters:
+ *  - setSourceTag()
+ *  - setFlags()
+ *  - setOwner()
+ *  - setOfferSequence()
+ *
+ *  @param {String} options.account source account
+ *  @param {String} options.owner SuspendedPaymentCreate's Account
+ *  @param {Integer} options.paymentSequence SuspendedPaymentCreate's Sequence
+ */
+
+Transaction.prototype.suspendedPaymentCancel = function(options) {
+  this.setType('SuspendedPaymentCancel');
+  this.setAccount(options.account);
+  this.setOwner(options.owner);
+  this.setOfferSequence(options.paymentSequence);
+  return this;
+};
+
+Transaction.prototype.setDigest = function(digest) {
+  return this._setHash256('Digest', digest);
+};
+
+Transaction.prototype.setAllowCancelAfter = function(after) {
+  return this._setUInt32('CancelAfter', utils.time.toRipple(after));
+};
+
+Transaction.prototype.setAllowExecuteAfter = function(after) {
+  return this._setUInt32('FinishAfter', utils.time.toRipple(after));
+};
+
+Transaction.prototype.setOwner = function(owner) {
+  return this._setAccount('Owner', owner);
+};
+
+Transaction.prototype.setMethod = function(method) {
+  return this._setUInt8('Method', method);
+};
+
+Transaction.prototype.setProof = function(proof) {
+  this.tx_json.Proof = convertStringToHex(proof);
+  return this;
+};
+
+Transaction.prototype._setUInt8 = function(name, value) {
+  const isValidUInt8 = typeof value === 'number' && value >= 0 && value < 256;
+  if (!isValidUInt8) {
+    throw new Error(name + ' must be a valid UInt8');
+  }
+  this.tx_json[name] = value;
+  return this;
+};
+
+Transaction.prototype.setSigners = function(signers) {
+  if (_.isArray(signers)) {
+    this.tx_json.Signers = signers;
+  }
+
+  return this;
+};
+
+Transaction.prototype.addMultiSigner = function(signer) {
+  assert(isValidAddress(signer.Account), 'Signer must have a valid Account');
+
+  if (_.isUndefined(this.tx_json.Signers)) {
+    this.tx_json.Signers = [];
+  }
+
+  this.tx_json.Signers.push({Signer: signer});
+
+  this.tx_json.Signers.sort((a, b) => {
+    return (new Buffer(decodeAddress(a.Signer.Account))).compare(
+      new Buffer(decodeAddress(b.Signer.Account)));
+  });
+
+  return this;
+};
+
+Transaction.prototype.hasMultiSigners = function() {
+  return !_.isEmpty(this.tx_json.Signers);
+};
+
+Transaction.prototype.getMultiSigners = function() {
+  return this.tx_json.Signers;
+};
+
+Transaction.prototype.getMultiSigningJson = function() {
+  assert(this.tx_json.Sequence, 'Sequence must be set before multi-signing');
+  assert(this.tx_json.Fee, 'Fee must be set before multi-signing');
+
+  if (_.isUndefined(this.tx_json.LastLedgerSequence)) {
+    // Auto-fill LastLedgerSequence
+    this.setLastLedgerSequence();
+  }
+
+  const cleanedJson = _.omit(this.tx_json, [
+    'SigningPubKey',
+    'Signers',
+    'TxnSignature'
+  ]);
+
+  const signingTx = Transaction.from_json(cleanedJson);
+  signingTx.remote = this.remote;
+  signingTx.setSigningPubKey('');
+  signingTx.setCanonicalFlag();
+
+  return signingTx.tx_json;
+};
+
+Transaction.prototype.multiSign = function(account, secret) {
+  const signingData = this.multiSigningData(account);
+  const keypair = deriveKeypair(secret);
+
+  const signer = {
+    Account: account,
+    TxnSignature: sign(signingData.buffer, keypair.privateKey),
+    SigningPubKey: keypair.publicKey
+  };
+
+  return signer;
+};
+
+exports.Transaction = Transaction;

@@ -2,9 +2,12 @@
 
 const _ = require('lodash');
 const assert = require('assert');
+const constants = require('./constants');
 const SerializedObject = require('./serializedobject').SerializedObject;
 const Types = require('./serializedtypes');
 const Amount = require('./amount').Amount;
+const Currency = require('./currency').Currency;
+const {IOUValue} = require('ripple-lib-value');
 const OrderBookUtils = {};
 
 function assertValidNumber(number, message) {
@@ -19,10 +22,15 @@ function assertValidNumber(number, message) {
 * @return JSON amount object
 */
 
-function createAmount(value, currency, counterparty) {
-  const newJSON =
-  {'value': value, 'currency': currency, 'issuer': counterparty};
-  return Amount.from_json(newJSON);
+function createAmount(value, currency_, counterparty) {
+  assert(_.isString(counterparty), 'counterparty must be a string');
+
+  const currency = currency_ instanceof Currency ?
+    currency_ :
+    Currency.from_json(currency_);
+
+  return Amount.from_components_unsafe(new IOUValue(value),
+    currency, counterparty, false);
 }
 
 /**
@@ -52,11 +60,11 @@ function getIssuerFromOffer(offer) {
  * @return {Amount}
  */
 
-OrderBookUtils.getOfferTakerGetsFunded = function(offer) {
+OrderBookUtils.getOfferTakerGetsFunded = function(offer, currency_, issuer_) {
   assertValidNumber(offer.taker_gets_funded, 'Taker gets funded is invalid');
 
-  const currency = getCurrencyFromOffer(offer);
-  const issuer = getIssuerFromOffer(offer);
+  const currency = currency_ || getCurrencyFromOffer(offer);
+  const issuer = issuer_ || getIssuerFromOffer(offer);
 
   return createAmount(offer.taker_gets_funded, currency, issuer);
 };
@@ -68,11 +76,11 @@ OrderBookUtils.getOfferTakerGetsFunded = function(offer) {
  * @return {Amount}
  */
 
-OrderBookUtils.getOfferTakerPaysFunded = function(offer) {
+OrderBookUtils.getOfferTakerPaysFunded = function(offer, currency_, issuer_) {
   assertValidNumber(offer.taker_pays_funded, 'Taker gets funded is invalid');
 
-  const currency = getCurrencyFromOffer(offer);
-  const issuer = getIssuerFromOffer(offer);
+  const currency = currency_ || getCurrencyFromOffer(offer);
+  const issuer = issuer_ || getIssuerFromOffer(offer);
 
   return createAmount(offer.taker_pays_funded, currency, issuer);
 };
@@ -85,11 +93,11 @@ OrderBookUtils.getOfferTakerPaysFunded = function(offer) {
  * @return {Amount}
  */
 
-OrderBookUtils.getOfferTakerGets = function(offer) {
+OrderBookUtils.getOfferTakerGets = function(offer, currency_, issuer_) {
   assert(typeof offer, 'object', 'Offer is invalid');
 
-  const currency = offer.TakerPays.currency;
-  const issuer = offer.TakerPays.issuer;
+  const currency = currency_ || offer.TakerPays.currency;
+  const issuer = issuer_ || offer.TakerPays.issuer;
 
   return createAmount(offer.TakerGets, currency, issuer);
 };
@@ -101,7 +109,9 @@ OrderBookUtils.getOfferTakerGets = function(offer) {
  * @param {Currency} currencyGets
  */
 
-OrderBookUtils.getOfferQuality = function(offer, currencyGets) {
+OrderBookUtils.getOfferQuality = function(offer, currencyGets, currency_,
+  issuer_
+) {
   let amount;
 
   if (currencyGets.has_interest()) {
@@ -113,8 +123,8 @@ OrderBookUtils.getOfferQuality = function(offer, currencyGets) {
     });
   } else {
 
-    const currency = getCurrencyFromOffer(offer);
-    const issuer = getIssuerFromOffer(offer);
+    const currency = currency_ || getCurrencyFromOffer(offer);
+    const issuer = issuer_ || getIssuerFromOffer(offer);
 
     amount = createAmount(offer.quality, currency, issuer);
   }
@@ -141,12 +151,34 @@ OrderBookUtils.convertOfferQualityToHex = function(quality) {
 };
 
 /**
+ * Formats an offer quality amount to a hex that can be parsed by
+ * Amount.parse_quality
+ *
+ * @param {String} quality
+ *
+ * @return {String}
+ */
+
+OrderBookUtils.convertOfferQualityToHexFromText = function(quality) {
+
+  const so = new SerializedObject();
+  Types.Quality.serialize(so, quality);
+
+  return so.to_hex();
+};
+
+
+OrderBookUtils.CURRENCY_ONE = Currency.from_json(1);
+
+OrderBookUtils.ISSUER_ONE = constants.ACCOUNT_ONE;
+
+/**
  *
  */
 
 OrderBookUtils.normalizeAmount = function(value) {
-
-  return Amount.from_number(value);
+  return Amount.from_components_unsafe(new IOUValue(value),
+    OrderBookUtils.CURRENCY_ONE, OrderBookUtils.ISSUER_ONE, false);
 };
 
 module.exports = OrderBookUtils;

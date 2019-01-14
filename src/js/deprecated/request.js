@@ -4,7 +4,6 @@ const _ = require('lodash');
 const EventEmitter = require('events').EventEmitter;
 const util = require('util');
 const async = require('async');
-const UInt160 = require('./uint160').UInt160;
 const Currency = require('./currency').Currency;
 const RippleError = require('./rippleerror').RippleError;
 
@@ -34,31 +33,65 @@ function Request(remote, command) {
     command: command,
     id: undefined
   };
+  this._timeout = this.remote.submission_timeout;
 }
 
 util.inherits(Request, EventEmitter);
 
 // Send the request to a remote.
-Request.prototype.request = function(servers, callback) {
-  this.emit('before');
-  this.callback(callback);
+Request.prototype.request = function(servers, callback_) {
+  const callback = typeof servers === 'function' ? servers : callback_;
+  const self = this;
 
+  if (this.requested) {
+    throw new Error('Already requested');
+  }
+
+  this.emit('before');
+  // emit handler can set requested flag
   if (this.requested) {
     return this;
   }
 
   this.requested = true;
+  this.callback(callback);
+
   this.on('error', function() {});
   this.emit('request', this.remote);
 
-  if (Array.isArray(servers)) {
-    servers.forEach(function(server) {
-      this.setServer(server);
-      this.remote.request(this);
-    }, this);
-  } else {
-    this.remote.request(this);
+  function doRequest() {
+    if (Array.isArray(servers)) {
+      servers.forEach(function(server) {
+        self.setServer(server);
+        self.remote.request(self);
+      }, self);
+    } else {
+      self.remote.request(self);
+    }
   }
+
+  const timeout = setTimeout(() => {
+    if (typeof callback === 'function') {
+      callback(new RippleError('tejTimeout'));
+    }
+
+    this.emit('timeout');
+    // just in case
+    this.emit = _.noop;
+    this.cancel();
+  }, this._timeout);
+
+  function onResponse() {
+    clearTimeout(timeout);
+  }
+
+  if (this.remote.isConnected()) {
+    this.remote.on('connected', doRequest);
+  }
+
+  this.once('response', onResponse);
+
+  doRequest();
 
   return this;
 };
@@ -207,14 +240,8 @@ Request.prototype.callback = function(callback, successEvent, errorEvent) {
 
   let called = false;
 
-  function requestSuccess(message) {
-    if (!called) {
-      called = true;
-      callback.call(self, null, message);
-    }
-  }
-
   function requestError(error) {
+    self.remote.removeListener('error', requestError);
     if (!called) {
       called = true;
 
@@ -226,45 +253,30 @@ Request.prototype.callback = function(callback, successEvent, errorEvent) {
     }
   }
 
+  function requestSuccess(message) {
+    self.remote.removeListener('error', requestError);
+    if (!called) {
+      called = true;
+      callback.call(self, null, message);
+    }
+  }
+
+  this.remote.once('error', requestError); // e.g. rate-limiting slowDown error
   this.once(this.successEvent, requestSuccess);
   this.once(this.errorEvent, requestError);
-  this.request();
+
+  if (!this.requested) {
+    this.request();
+  }
 
   return this;
 };
 
-Request.prototype.timeout = function(duration, callback) {
-  const self = this;
-
-  function requested() {
-    self.timeout(duration, callback);
+Request.prototype.setTimeout = function(delay) {
+  if (!_.isFinite(delay)) {
+    throw new Error('delay must be number');
   }
-
-  if (!this.requested) {
-    // Defer until requested
-    return this.once('request', requested);
-  }
-
-  const emit = this.emit;
-  let timed_out = false;
-
-  const timeout = setTimeout(function() {
-    timed_out = true;
-
-    if (typeof callback === 'function') {
-      callback();
-    }
-
-    emit.call(self, 'timeout');
-    self.cancel();
-  }, duration);
-
-  this.emit = function() {
-    if (!timed_out) {
-      clearTimeout(timeout);
-      emit.apply(self, arguments);
-    }
-  };
+  this._timeout = delay;
 
   return this;
 };
@@ -357,7 +369,7 @@ Request.prototype.selectLedger = function(ledger, defaultValue) {
 };
 
 Request.prototype.accountRoot = function(account) {
-  this.message.account_root = UInt160.json_rewrite(account);
+  this.message.account_root = account;
   return this;
 };
 
@@ -371,7 +383,7 @@ Request.prototype.index = function(index) {
 // --> seq : sequence number of transaction creating offer (integer)
 Request.prototype.offerId = function(account, sequence) {
   this.message.offer = {
-    account: UInt160.json_rewrite(account),
+    account: account,
     seq: sequence
   };
   return this;
@@ -409,8 +421,8 @@ Request.prototype.rippleState = function(account, issuer, currency) {
   this.message.ripple_state = {
     currency: currency,
     accounts: [
-      UInt160.json_rewrite(account),
-      UInt160.json_rewrite(issuer)
+      account,
+      issuer
     ]
   };
   return this;
@@ -422,7 +434,7 @@ Request.prototype.accounts = function(accountsIn, proposed) {
 
   // Process accounts parameters
   const processedAccounts = accounts.map(function(account) {
-    return UInt160.json_rewrite(account);
+    return account;
   });
 
   if (proposed) {
@@ -440,7 +452,7 @@ Request.prototype.addAccount = function(account, proposed) {
     return this;
   }
 
-  const processedAccount = UInt160.json_rewrite(account);
+  const processedAccount = account;
   const prop = proposed === true ? 'accounts_proposed' : 'accounts';
   this.message[prop] = (this.message[prop] || []).concat(processedAccount);
 
@@ -495,7 +507,7 @@ Request.prototype.addBook = function(book, snapshot) {
     };
 
     if (!Currency.from_json(obj.currency).is_native()) {
-      obj.issuer = UInt160.json_rewrite(book[side].issuer);
+      obj.issuer = book[side].issuer;
     }
   }
 

@@ -1,5 +1,6 @@
 'use strict';
 
+const _ = require('lodash');
 const util = require('util');
 const assert = require('assert');
 const async = require('async');
@@ -20,13 +21,12 @@ function TransactionManager(account) {
   const self = this;
 
   this._account = account;
-  this._accountID = account._account_id;
+  this._accountID = account._address;
   this._remote = account._remote;
   this._nextSequence = undefined;
   this._maxFee = this._remote.max_fee;
   this._maxAttempts = this._remote.max_attempts;
   this._submissionTimeout = this._remote.submission_timeout;
-  this._lastLedgerOffset = this._remote.last_ledger_offset;
   this._pending = new PendingQueue();
 
   this._account.on('transaction-outbound', function(res) {
@@ -529,6 +529,10 @@ TransactionManager.prototype._prepareRequest = function(tx) {
     const hash = tx.hash(null, null, serialized);
     tx.addId(hash);
   } else {
+    if (tx.hasMultiSigners()) {
+      submitRequest.message.command = 'submit_multisigned';
+    }
+
     // ND: `build_path` is completely ignored when doing local signing as
     // `Paths` is a component of the signed blob, the `tx_blob` is signed,
     // sealed and delivered, and the txn unmodified.
@@ -565,6 +569,11 @@ TransactionManager.prototype._request = function(tx) {
   if (tx.attempts > 0 && !remote.local_signing) {
     const errMessage = 'Automatic resubmission requires local signing';
     tx.emit('error', new RippleError('tejLocalSigningRequired', errMessage));
+    return;
+  }
+
+  if (Number(tx.tx_json.Fee) > tx._maxFee) {
+    tx.emit('error', new RippleError('tejMaxFeeExceeded'));
     return;
   }
 
@@ -672,22 +681,10 @@ TransactionManager.prototype._request = function(tx) {
     }
   }
 
-  tx.submitIndex = this._remote._ledger_current_index;
+  tx.submitIndex = this._remote.getLedgerSequenceSync() + 1;
 
   if (tx.attempts === 0) {
     tx.initialSubmitIndex = tx.submitIndex;
-  }
-
-  if (!tx._setLastLedger) {
-    // Honor LastLedgerSequence set with tx.lastLedger()
-    tx.tx_json.LastLedgerSequence = tx.initialSubmitIndex
-    + this._lastLedgerOffset;
-  }
-
-  tx.lastLedgerSequence = tx.tx_json.LastLedgerSequence;
-
-  if (remote.local_signing) {
-    tx.sign();
   }
 
   const submitRequest = this._prepareRequest(tx);
@@ -701,7 +698,8 @@ TransactionManager.prototype._request = function(tx) {
 
   tx.emit('postsubmit');
 
-  submitRequest.timeout(self._submissionTimeout, requestTimeout);
+  submitRequest.setTimeout(self._submissionTimeout);
+  submitRequest.once('timeout', requestTimeout);
 };
 
 /**
@@ -726,9 +724,18 @@ TransactionManager.prototype.submit = function(tx) {
     return;
   }
 
-  if (typeof tx.tx_json.Sequence !== 'number') {
+  if (!_.isNumber(tx.tx_json.Sequence)) {
     // Honor manually-set sequences
-    tx.tx_json.Sequence = this._nextSequence++;
+    tx.setSequence(this._nextSequence++);
+  }
+
+  if (_.isUndefined(tx.tx_json.LastLedgerSequence)) {
+    tx.setLastLedgerSequence();
+  }
+
+  if (tx.hasMultiSigners()) {
+    tx.setResubmittable(false);
+    tx.setSigningPubKey('');
   }
 
   tx.once('cleanup', function() {

@@ -18,13 +18,12 @@ const assert = require('assert');
 const _ = require('lodash');
 const LRU = require('lru-cache');
 const async = require('async');
+const constants = require('./constants');
 const EventEmitter = require('events').EventEmitter;
 const Server = require('./server').Server;
 const Request = require('./request').Request;
 const Amount = require('./amount').Amount;
 const Currency = require('./currency').Currency;
-const UInt160 = require('./uint160').UInt160;
-const UInt256 = require('./uint256').UInt256;
 const Transaction = require('./transaction').Transaction;
 const Account = require('./account').Account;
 const Meta = require('./meta').Meta;
@@ -35,6 +34,8 @@ const RippleError = require('./rippleerror').RippleError;
 const utils = require('./utils');
 const hashprefixes = require('./hashprefixes');
 const log = require('./log').internal.sub('remote');
+const {isValidAddress} = require('ripple-address-codec');
+
 
 /**
  * Interface to manage connections to rippled servers
@@ -224,14 +225,16 @@ Remote.flags = {
     Passive: 0x00010000,
     Sell: 0x00020000  // offer was placed as a sell
   },
-  // Ripple tate
+  // Ripple state
   state: {
     LowReserve: 0x00010000, // entry counts toward reserve
     HighReserve: 0x00020000,
     LowAuth: 0x00040000,
     HighAuth: 0x00080000,
     LowNoRipple: 0x00100000,
-    HighNoRipple: 0x00200000
+    HighNoRipple: 0x00200000,
+    LowFreeze: 0x00400000,
+    HighFreeze: 0x00800000
   }
 };
 
@@ -419,22 +422,23 @@ Remote.prototype.reconnect = function() {
 /**
  * Connect to the Ripple network
  *
- * @param {Function} callback
+ * @param [Function] [callback]
  * @api public
  */
 
-Remote.prototype.connect = function(callback) {
-  if (!this._servers.length) {
+Remote.prototype.connect = function(callback = function() {}) {
+  if (_.isEmpty(this._servers)) {
     throw new Error('No servers available.');
   }
 
-  if (typeof callback === 'function') {
-    this.once('connect', callback);
+  if (this.isConnected()) {
+    callback();
+    return this;
   }
 
+  this.once('connect', callback);
   this._should_connect = true;
-
-  this._servers.forEach(function(server) {
+  this._servers.forEach(server => {
     server.connect();
   });
 
@@ -444,29 +448,23 @@ Remote.prototype.connect = function(callback) {
 /**
  * Disconnect from the Ripple network.
  *
- * @param {Function} callback
+ * @param {Function} [callback]
  * @api public
  */
 
-Remote.prototype.disconnect = function(callback_) {
-  if (!this._servers.length) {
+Remote.prototype.disconnect = function(callback = function() {}) {
+  if (_.isEmpty(this._servers)) {
     throw new Error('No servers available, not disconnecting');
   }
-
-  const callback = _.isFunction(callback_)
-  ? callback_
-  : function() {};
-
-  this._should_connect = false;
 
   if (!this.isConnected()) {
     callback();
     return this;
   }
 
+  this._should_connect = false;
   this.once('disconnect', callback);
-
-  this._servers.forEach(function(server) {
+  this._servers.forEach(server => {
     server.disconnect();
   });
 
@@ -521,7 +519,34 @@ Remote.prototype._handleMessage = function(message, server) {
   }
 };
 
-Remote.prototype.getLedgerSequence = function() {
+/**
+ *
+ * @param {Function} [callback]
+ * @api public
+ */
+
+Remote.prototype.getLedgerSequence = function(callback = function() {}) {
+  if (!this._servers.length) {
+    callback(new Error('No servers available.'));
+    return;
+  }
+
+  if (_.isFinite(this._ledger_current_index)) {
+    // the "current" ledger is the one after the most recently closed ledger
+    callback(null, this._ledger_current_index - 1);
+  } else {
+    this.once('ledger_closed', () => {
+      callback(null, this._ledger_current_index - 1);
+    });
+  }
+};
+
+/**
+ *
+ * @api private
+ */
+
+Remote.prototype.getLedgerSequenceSync = function()         {
   if (!this._ledger_current_index) {
     throw new Error('Ledger sequence has not yet been initialized');
   }
@@ -784,8 +809,8 @@ Remote.prototype.request = function(request) {
 /**
  * Request ping
  *
- * @param [String] server host
- * @param [Function] callback
+ * @param {String} [server] host
+ * @param {Function} [callback]
  * @return {Request} request
  */
 
@@ -817,7 +842,7 @@ Remote.prototype.requestPing = function(host, callback_) {
 /**
  * Request server_info
  *
- * @param [Function] callback
+ * @param {Function} [callback]
  * @return {Request} request
  */
 
@@ -887,7 +912,7 @@ Remote.prototype.requestLedger = function(options, callback_) {
 /**
  * Request ledger_closed
  *
- * @param [Function] callback
+ * @param {Function} [callback]
  * @return {Request} request
  */
 
@@ -900,7 +925,7 @@ Remote.prototype.requestLedgerHash = function(callback) {
 /**
  * Request ledger_header
  *
- * @param [Function] callback
+ * @param {Function} [callback]
  * @return {Request} request
  */
 
@@ -916,7 +941,7 @@ Remote.prototype.requestLedgerHeader = function(callback) {
  *
  * Only for unit testing.
  *
- * @param [Function] callback
+ * @param {Function} [callback]
  * @return {Request} request
  */
 
@@ -930,13 +955,13 @@ Remote.prototype.requestLedgerCurrent = function(callback) {
  * Get the contents of a specified ledger
  *
  * @param {Object} options
- * @property {Boolean} [options.binary]- Flag which determines if rippled
- * returns binary or parsed JSON
- * @property {String|Number} [options.ledger] - Hash or sequence of a ledger
- * to get contents for
- * @property {Number} [options.limit] - Number of contents to retrieve
- * from the ledger
- * @property {Function} callback
+ * @param {Boolean} [options.binary]- Flag which determines if rippled
+ *                                    returns binary or parsed JSON
+ * @param {String|Number} [options.ledger] - Hash or sequence of a ledger
+ *                                           to get contents for
+ * @param {Number} [options.limit] - Number of contents to retrieve
+ *                                   from the ledger
+ * @param {Function} callback
  *
  * @callback
  * @param {Error} error
@@ -984,8 +1009,8 @@ Remote.prototype.requestLedgerData = function(options, callback) {
 /**
  * Request ledger_entry
  *
- * @param [String] type
- * @param [Function] callback
+ * @param {String} [type]
+ * @param {Function} [callback]
  * @return {Request} request
  */
 
@@ -1056,7 +1081,7 @@ Remote.prototype.requestLedgerEntry = function(type, callback_) {
  * Request subscribe
  *
  * @param {Array} streams
- * @param [Function] callback
+ * @param {Function} [callback]
  * @return {Request} request
  */
 
@@ -1076,7 +1101,7 @@ Remote.prototype.requestSubscribe = function(streams, callback) {
  * Request usubscribe
  *
  * @param {Array} streams
- * @param [Function] callback
+ * @param {Function} [callback]
  * @return {Request} request
  */
 
@@ -1098,7 +1123,7 @@ Remote.prototype.requestUnsubscribe = function(streams, callback) {
  * @param {Object} options -
  * @param {String} [options.transaction] -  hash
  * @param {String|Number} [options.ledger='validated'] - hash or sequence
- * @param [Function] callback
+ * @param {Function} [callback]
  * @return {Request} request
  */
 
@@ -1113,14 +1138,15 @@ Remote.prototype.requestTransactionEntry = function(options, callback) {
 /**
  * Request tx
  *
- * @param {Object|String} hash
- * @property {String} hash.hash           - Transaction hash
- * @property {Boolean} [hash.binary=true] - Flag which determines if rippled
- * returns binary or parsed JSON
- * @param [Function] callback
+ * @param {Object} options -
+ * @property {String} [options.hash] - Transaction hash
+ * @property {Boolean} [options.binary=true] - Flag which determines if rippled
+ *                                             returns binary or parsed JSON
+ * @param {Function} [callback]
  * @return {Request} request
  */
 
+Remote.prototype.requestTx =
 Remote.prototype.requestTransaction = function(options, callback) {
   const request = new Request(this, 'tx');
   request.message.binary = options.binary !== false;
@@ -1151,19 +1177,23 @@ Remote.prototype.requestTransaction = function(options, callback) {
  *
  * @param {String} command - request command, e.g. 'account_lines'
  * @param {Object} options - all optional
- *   @param {String} account - ripple address
- *   @param {String} peer - ripple address
- *   @param [String|Number] ledger identifier
- *   @param [Number] limit - max results per response
- *   @param {String} marker - start position in response paging
- * @param [Function] callback
+ *   @param {String} options.account - ripple address
+ *   @param {String} [options.peer] - ripple address
+ *   @param {String|Number} [options.ledger] - identifier
+ *   @param {Number} [options.limit] - max results per response
+ *   @param {String} [options.marker] - start position in response paging
+ * @param {Function} [callback]
  * @return {Request}
  * @throws {Error} if a marker is provided, but no ledger_index or ledger_hash
  */
 
-Remote.accountRequest = function(command, options, callback) {
+function isValidLedgerHash(hash) {
+  return /^[A-F0-9]{64}$/.test(hash);
+}
+
+Remote.prototype._accountRequest = function(command, options, callback) {
   if (options.marker) {
-    if (!(Number(options.ledger) > 0) && !UInt256.is_valid(options.ledger)) {
+    if (!(Number(options.ledger) > 0) && !isValidLedgerHash(options.ledger)) {
       throw new Error(
         'A ledger_index or ledger_hash must be provided when using a marker');
     }
@@ -1171,11 +1201,11 @@ Remote.accountRequest = function(command, options, callback) {
 
   const request = new Request(this, command);
 
-  request.message.account = UInt160.json_rewrite(options.account);
+  request.message.account = options.account;
   request.selectLedger(options.ledger);
 
-  if (UInt160.is_valid(options.peer)) {
-    request.message.peer = UInt160.json_rewrite(options.peer);
+  if (isValidAddress(options.peer)) {
+    request.message.peer = options.peer;
   }
 
   if (!isNaN(options.limit)) {
@@ -1207,33 +1237,31 @@ Remote.accountRequest = function(command, options, callback) {
 /**
  * Request account_info
  *
- * @param {Object} options
- *   @param {String} account - ripple address
- *   @param {String} peer - ripple address
- *   @param [String|Number] ledger identifier
- * @param [Function] callback
+ * @param {Object} options -
+ *   @param {String} options.account - ripple address
+ *   @param {String} [options.peer] - ripple address
+ *   @param {String|Number} [options.ledger] - identifier
+ * @param {Function} [callback]
  * @return {Request}
  */
 
-Remote.prototype.requestAccountInfo = function(...args) {
-  const options = ['account_info', ...args];
-  return Remote.accountRequest.apply(this, options);
+Remote.prototype.requestAccountInfo = function(options, callback) {
+  return this._accountRequest('account_info', options, callback);
 };
 
 /**
  * Request account_currencies
  *
  * @param {Object} options
- *   @param {String} account - ripple address
- *   @param {String} peer - ripple address
- *   @param [String|Number] ledger identifier
- * @param [Function] callback
+ *   @param {String} options.account - ripple address
+ *   @param {String} [options.peer] - ripple address
+ *   @param {String|Number} [options.ledger] - identifier
+ * @param {Function} [callback]
  * @return {Request}
  */
 
-Remote.prototype.requestAccountCurrencies = function(...args) {
-  const options = ['account_currencies', ...args];
-  return Remote.accountRequest.apply(this, options);
+Remote.prototype.requestAccountCurrencies = function(options, callback) {
+  return this._accountRequest('account_currencies', options, callback);
 };
 
 /**
@@ -1247,33 +1275,19 @@ Remote.prototype.requestAccountCurrencies = function(...args) {
  * when paging to ensure a complete response
  *
  * @param {Object} options
- *   @param {String} account - ripple address
- *   @param {String} peer - ripple address
- *   @param [String|Number] ledger identifier
- *   @param [Number] limit - max results per response
- *   @param {String} marker - start position in response paging
- * @param [Function] callback
+ *   @param {String} options.account - ripple address
+ *   @param {String} [options.peer] - ripple address
+ *   @param {String|Number} [options.ledger] identifier
+ *   @param {Number} [options.limit] - max results per response
+ *   @param {String} [options.marker] - start position in response paging
+ * @param {Function} [callback]
  * @return {Request}
  */
 
-Remote.prototype.requestAccountLines = function(...args) {
+Remote.prototype.requestAccountLines = function(options, callback) {
   // XXX Does this require the server to be trusted?
   // utils.assert(this.trusted);
-  let options = ['account_lines'];
-
-  if (_.isPlainObject(args[0])) {
-    options = options.concat(args);
-  } else {
-    const [account, peer, ledger] = args;
-    options = options.concat([
-      account,
-      ledger,
-      peer,
-      ...args.slice(3)
-    ]);
-  }
-
-  return Remote.accountRequest.apply(this, options);
+  return this._accountRequest('account_lines', options, callback);
 };
 
 /**
@@ -1287,17 +1301,16 @@ Remote.prototype.requestAccountLines = function(...args) {
  * when paging to ensure a complete response
  *
  * @param {Object} options
- *   @param {String} account - ripple address
- *   @param [String|Number] ledger identifier
- *   @param [Number] limit - max results per response
- *   @param {String} marker - start position in response paging
- * @param [Function] callback
+ *   @param {String} options.account - ripple address
+ *   @param {String|Number} [options.ledger] identifier
+ *   @param {Number} [options.limit] - max results per response
+ *   @param {String} [options.marker] - start position in response paging
+ * @param {Function} [callback]
  * @return {Request}
  */
 
-Remote.prototype.requestAccountOffers = function(...args) {
-  const options = ['account_offers', ...args];
-  return Remote.accountRequest.apply(this, options);
+Remote.prototype.requestAccountOffers = function(options, callback) {
+  return this._accountRequest('account_offers', options, callback);
 };
 
 /**
@@ -1305,17 +1318,17 @@ Remote.prototype.requestAccountOffers = function(...args) {
  *
  * @param {Object} options
  *
- *    @param {String} account
- *    @param [Number] ledger_index_min defaults to -1
- *    @param [Number] ledger_index_max defaults to -1
- *    @param [Boolean] binary, defaults to true
- *    @param [Boolean] parseBinary, defaults to true
- *    @param [Boolean] count, defaults to false
- *    @param [Boolean] descending, defaults to false
- *    @param [Number] offset, defaults to 0
- *    @param [Number] limit
+ *    @param {String} options.account
+ *    @param {Number} [options.ledger_index_min=-1]
+ *    @param {Number} [options.ledger_index_max=-1]
+ *    @param {Boolean} [options.binary=true]
+ *    @param {Boolean} [options.parseBinary=true]
+ *    @param {Boolean} [options.count=false]
+ *    @param {Boolean} [options.descending=false]
+ *    @param {Number} [options.offset=0]
+ *    @param {Number} [options.limit]
  *
- * @param [Function] callback
+ * @param {Function} [callback]
  * @return {Request}
  */
 
@@ -1474,8 +1487,8 @@ Remote.parseBinaryLedgerData = function(ledgerData) {
  * Returns a list of transactions that happened recently on the network. The
  * default number of transactions to be returned is 20.
  *
- * @param [Number] start
- * @param [Function] callback
+ * @param {Number} [start]
+ * @param {Function} [callback]
  * @return {Request}
  */
 
@@ -1493,36 +1506,45 @@ Remote.prototype.requestTransactionHistory = function(options, callback) {
  * Request book_offers
  *
  * @param {Object} options
- *   @param {Object} options.gets - taker_gets with issuer and currency
- *   @param {Object} options.pays - taker_pays with issuer and currency
+ *   @param {Object} options.taker_gets - taker_gets with issuer and currency
+ *   @param {Object} options.taker_pays - taker_pays with issuer and currency
  *   @param {String} [options.taker]
  *   @param {String} [options.ledger]
  *   @param {String|Number} [options.limit]
- * @param [Function] callback
+ * @param {Function} [callback]
  * @return {Request}
  */
 
 Remote.prototype.requestBookOffers = function(options, callback) {
-  const {gets, pays, taker, ledger, limit} = options;
+  const {taker, ledger, limit} = options;
+  let {taker_gets, taker_pays} = options;
+
+  if (taker_gets === undefined) {
+    taker_gets = options.gets;
+  }
+  if (taker_pays === undefined) {
+    taker_pays = options.pays;
+  }
+
   const request = new Request(this, 'book_offers');
 
   request.message.taker_gets = {
-    currency: Currency.json_rewrite(gets.currency, {force_hex: true})
+    currency: Currency.json_rewrite(taker_gets.currency, {force_hex: true})
   };
 
   if (!Currency.from_json(request.message.taker_gets.currency).is_native()) {
-    request.message.taker_gets.issuer = UInt160.json_rewrite(gets.issuer);
+    request.message.taker_gets.issuer = taker_gets.issuer;
   }
 
   request.message.taker_pays = {
-    currency: Currency.json_rewrite(pays.currency, {force_hex: true})
+    currency: Currency.json_rewrite(taker_pays.currency, {force_hex: true})
   };
 
   if (!Currency.from_json(request.message.taker_pays.currency).is_native()) {
-    request.message.taker_pays.issuer = UInt160.json_rewrite(pays.issuer);
+    request.message.taker_pays.issuer = taker_pays.issuer;
   }
 
-  request.message.taker = taker ? taker : UInt160.ACCOUNT_ONE;
+  request.message.taker = taker ? taker : constants.ACCOUNT_ONE;
   request.selectLedger(ledger);
 
   if (!isNaN(limit)) {
@@ -1543,6 +1565,7 @@ Remote.prototype.requestBookOffers = function(options, callback) {
   }
 
   request.callback(callback);
+
   return request;
 };
 
@@ -1550,7 +1573,7 @@ Remote.prototype.requestBookOffers = function(options, callback) {
  * Request wallet_accounts
  *
  * @param {String} seed
- * @param [Function] callback
+ * @param {Function} [callback]
  * @return {Request}
  */
 
@@ -1568,7 +1591,7 @@ Remote.prototype.requestWalletAccounts = function(options, callback) {
  *
  * @param {String} secret
  * @param {Object} tx_json
- * @param [Function] callback
+ * @param {Function} [callback]
  * @return {Request}
  */
 
@@ -1586,7 +1609,7 @@ Remote.prototype.requestSign = function(options, callback) {
 /**
  * Request submit
  *
- * @param [Function] callback
+ * @param {Function} [callback]
  * @return {Request}
  */
 
@@ -1602,7 +1625,7 @@ Remote.prototype.requestSubmit = function(callback) {
  *
  * This function will create and return the request, but not submit it.
  *
- * @param [Function] callback
+ * @param {Function} [callback]
  * @api private
  */
 
@@ -1645,7 +1668,7 @@ Remote.prototype._serverPrepareSubscribe = function(server, callback_) {
  * to 'ledger_hash' events. A good way to be notified of the result of this is:
  * remote.on('ledger_closed', function(ledger_closed, ledger_index) { ... } );
  *
- * @param [Function] callback
+ * @param {Function} [callback]
  */
 
 Remote.prototype.ledgerAccept =
@@ -1677,7 +1700,8 @@ Remote.prototype.requestLedgerAccept = function(callback) {
  * @api private
  */
 
-Remote.accountRootRequest = function(command, filter, options, callback) {
+Remote.prototype._accountRootRequest = function(command, filter,
+                                               options, callback) {
   const request = this.requestLedgerEntry('account_root');
   request.accountRoot(options.account);
   request.selectLedger(options.ledger);
@@ -1694,55 +1718,55 @@ Remote.accountRootRequest = function(command, filter, options, callback) {
 /**
  * Request account balance
  *
- * @param {String} account
- * @param [String|Number] ledger
- * @param [Function] callback
+ * @param {Object} options
+ * @param {String} options.account -
+ * @param {String|Number} [options.ledger] -
+ * @param {Function} [callback]
  * @return {Request}
  */
 
-Remote.prototype.requestAccountBalance = function(...args) {
+Remote.prototype.requestAccountBalance = function(options, callback) {
   function responseFilter(message) {
     return Amount.from_json(message.node.Balance);
   }
-
-  const options = ['account_balance', responseFilter, ...args];
-  return Remote.accountRootRequest.apply(this, options);
+  return this._accountRootRequest(
+              'account_balance', responseFilter, options, callback);
 };
 
 /**
  * Request account flags
  *
- * @param {String} account
- * @param [String|Number] ledger
- * @param [Function] callback
+ * @param {Object} options
+ * @param {String} options.account -
+ * @param {String|Number} [options.ledger] -
+ * @param {Function} [callback]
  * @return {Request}
  */
 
-Remote.prototype.requestAccountFlags = function(...args) {
+Remote.prototype.requestAccountFlags = function(options, callback) {
   function responseFilter(message) {
     return message.node.Flags;
   }
-
-  const options = ['account_flags', responseFilter, ...args];
-  return Remote.accountRootRequest.apply(this, options);
+  return this._accountRootRequest(
+              'account_flags', responseFilter, options, callback);
 };
 
 /**
  * Request owner count
  *
- * @param {String} account
- * @param [String|Number] ledger
- * @param [Function] callback
+ * @param {Object} options
+ * @param {String} options.account
+ * @param {String|Number} [options.ledger]
+ * @param {Function} [callback]
  * @return {Request}
  */
 
-Remote.prototype.requestOwnerCount = function(...args) {
+Remote.prototype.requestOwnerCount = function(options, callback) {
   function responseFilter(message) {
     return message.node.OwnerCount;
   }
-
-  const options = ['owner_count', responseFilter, ...args];
-  return Remote.accountRootRequest.apply(this, options);
+  return this._accountRootRequest(
+              'owner_count', responseFilter, options, callback);
 };
 
 /**
@@ -1754,7 +1778,7 @@ Remote.prototype.requestOwnerCount = function(...args) {
  */
 
 Remote.prototype.getAccount = function(accountID) {
-  return this._accounts[UInt160.json_rewrite(accountID)];
+  return this._accounts[accountID];
 };
 
 /**
@@ -1789,21 +1813,38 @@ Remote.prototype.findAccount = function(accountID) {
 };
 
 /**
+ * Closes current pathfind, if there is one.
+ * After that new pathfind can be created, without adding to queue.
+ *
+ * @return {void} -
+ */
+Remote.prototype.closeCurrentPathFind = function() {
+  if (this._cur_path_find !== null) {
+    this._cur_path_find.close();
+    this._cur_path_find = null;
+  }
+};
+
+/**
  * Create a pathfind
  *
  * @param {Object} options -
- * @param {Function} callback -
+ * @param {Function} [callback] -
  * @return {PathFind} -
  */
 Remote.prototype.createPathFind = function(options, callback) {
   if (this._cur_path_find !== null) {
+    if (callback === undefined) {
+      throw new Error('Only one streaming pathfind ' +
+                      'request at a time is supported');
+    }
     this._queued_path_finds.push({options, callback});
     return null;
   }
 
   const pathFind = new PathFind(this,
     options.src_account, options.dst_account,
-    options.dst_amount, options.src_currencies);
+    options.dst_amount, options.src_currencies, options.src_amount);
 
   if (this._cur_path_find) {
     this._cur_path_find.notify_superceded();
@@ -1811,9 +1852,20 @@ Remote.prototype.createPathFind = function(options, callback) {
 
   if (callback) {
     pathFind.on('update', (data) => {
-      if (data.full_reply) {
-        pathFind.close();
+      if (data.full_reply && !data.closed) {
+        this._cur_path_find = null;
         callback(null, data);
+        // "A client can only have one pathfinding request open at a time.
+        // If another pathfinding request is already open on the same
+        // connection, the old request is automatically closed and replaced
+        // with the new request."
+        // - ripple.com/build/rippled-apis/#path-find-create
+        if (this._queued_path_finds.length > 0) {
+          const pathfind = this._queued_path_finds.shift();
+          this.createPathFind(pathfind.options, pathfind.callback);
+        } else {
+          pathFind.close();
+        }
       }
     });
     pathFind.on('error', callback);
@@ -1867,8 +1919,7 @@ Remote.prototype.book = Remote.prototype.createOrderBook = function(options) {
  */
 
 Remote.prototype.accountSeq =
-Remote.prototype.getAccountSequence = function(account_, advance) {
-  const account = UInt160.json_rewrite(account_);
+Remote.prototype.getAccountSequence = function(account, advance) {
   const accountInfo = this.accounts[account];
 
   if (!accountInfo) {
@@ -1891,9 +1942,7 @@ Remote.prototype.getAccountSequence = function(account_, advance) {
  */
 
 Remote.prototype.setAccountSequence =
-Remote.prototype.setAccountSeq = function(account_, sequence) {
-  const account = UInt160.json_rewrite(account_);
-
+Remote.prototype.setAccountSeq = function(account, sequence) {
   if (!this.accounts.hasOwnProperty(account)) {
     this.accounts[account] = { };
   }
@@ -1904,9 +1953,10 @@ Remote.prototype.setAccountSeq = function(account_, sequence) {
 /**
  * Refresh an account's sequence from server
  *
- * @param {String} account
- * @param [String|Number] ledger
- * @param [Function] callback
+ * @param {Object} options
+ *  @param {String} options.account
+ *  @param {String|Number} [options.ledger]
+ * @param {Function} [callback]
  * @return {Request}
  */
 
@@ -1958,8 +2008,7 @@ Remote.prototype.accountSeqCache = function(options, callback) {
  * @param {String} account
  */
 
-Remote.prototype.dirtyAccountRoot = function(account_) {
-  const account = UInt160.json_rewrite(account_);
+Remote.prototype.dirtyAccountRoot = function(account) {
   delete this.ledgers.current.account_root[account];
 };
 
@@ -2004,11 +2053,12 @@ Remote.prototype.requestOffer = function(options, callback) {
 /**
  * Get an account's balance
  *
- * @param {String} account
- * @param [String] issuer
- * @param [String] currency
- * @param [String|Number] ledger
- * @param [Function] callback
+ * @param {Object} options
+ * @param {String} options.account
+ * @param {String} [options.issuer]
+ * @param {String} [options.currency]
+ * @param {String|Number} [options.ledger]
+ * @param {Function} [callback]
  * @return {Request}
  */
 
@@ -2031,8 +2081,7 @@ Remote.prototype.requestRippleBalance = function(options, callback) {
 
     // accountHigh implies for account: balance is negated.  highLimit is the
     // limit set by account.
-    const accountHigh = UInt160.from_json(options.account)
-    .equals(highLimit.issuer());
+    const accountHigh = (options.account === highLimit.issuer());
 
     request.emit('ripple_state', {
       account_balance: (accountHigh
@@ -2073,7 +2122,7 @@ Remote.prepareCurrencies = function(currency) {
   const newCurrency = { };
 
   if (currency.hasOwnProperty('issuer')) {
-    newCurrency.issuer = UInt160.json_rewrite(currency.issuer);
+    newCurrency.issuer = currency.issuer;
   }
 
   if (currency.hasOwnProperty('currency')) {
@@ -2088,18 +2137,14 @@ Remote.prepareCurrencies = function(currency) {
  * Request ripple_path_find
  *
  * @param {Object} options
- * @param [Function] callback
+ * @param {Function} [callback]
  * @return {Request}
  */
 
 Remote.prototype.requestRipplePathFind = function(options, callback) {
   const request = new Request(this, 'ripple_path_find');
-
-  request.message.source_account = UInt160.json_rewrite(options.source_account);
-
-  request.message.destination_account =
-    UInt160.json_rewrite(options.destination_account);
-
+  request.message.source_account = options.source_account;
+  request.message.destination_account = options.destination_account;
   request.message.destination_amount =
     Amount.json_rewrite(options.destination_amount);
 
@@ -2117,7 +2162,7 @@ Remote.prototype.requestRipplePathFind = function(options, callback) {
  * Request path_find/create
  *
  * @param {Object} options
- * @param [Function] callback
+ * @param {Function} [callback]
  * @return {Request}
  */
 
@@ -2125,17 +2170,18 @@ Remote.prototype.requestPathFindCreate = function(options, callback) {
   const request = new Request(this, 'path_find');
   request.message.subcommand = 'create';
 
-  request.message.source_account = UInt160.json_rewrite(options.source_account);
-
-  request.message.destination_account =
-    UInt160.json_rewrite(options.destination_account);
-
+  request.message.source_account = options.source_account;
+  request.message.destination_account = options.destination_account;
   request.message.destination_amount =
     Amount.json_rewrite(options.destination_amount);
 
   if (Array.isArray(options.source_currencies)) {
     request.message.source_currencies =
       options.source_currencies.map(Remote.prepareCurrency);
+  }
+
+  if (options.send_max) {
+    request.message.send_max = Amount.json_rewrite(options.send_max);
   }
 
   request.callback(callback);
@@ -2145,28 +2191,21 @@ Remote.prototype.requestPathFindCreate = function(options, callback) {
 /**
  * Request path_find/close
  *
- * @param [Function] callback
+ * @param {Function} [callback]
  * @return {Request}
  */
 
 Remote.prototype.requestPathFindClose = function(callback) {
   const request = new Request(this, 'path_find');
-
   request.message.subcommand = 'close';
   request.callback(callback);
-  this._cur_path_find = null;
-  if (this._queued_path_finds.length > 0) {
-    const pathfind = this._queued_path_finds.shift();
-    this.createPathFind(pathfind.options, pathfind.callback);
-  }
-
   return request;
 };
 
 /**
  * Request unl_list
  *
- * @param [Function] callback
+ * @param {Function} [callback]
  * @return {Request}
  */
 
@@ -2179,7 +2218,7 @@ Remote.prototype.requestUnlList = function(callback) {
  *
  * @param {String} address
  * @param {String} comment
- * @param [Function] callback
+ * @param {Function} [callback]
  * @return {Request}
  */
 
@@ -2202,7 +2241,7 @@ Remote.prototype.requestUnlAdd = function(address, comment, callback) {
  * Request unl_delete
  *
  * @param {String} node
- * @param [Function] callback
+ * @param {Function} [callback]
  * @return {Request}
  */
 
@@ -2218,7 +2257,7 @@ Remote.prototype.requestUnlDelete = function(node, callback) {
 /**
  * Request peers
  *
- * @param [Function] callback
+ * @param {Function} [callback]
  * @return {Request}
  */
 
@@ -2231,7 +2270,7 @@ Remote.prototype.requestPeers = function(callback) {
  *
  * @param {String} ip
  * @param {Number} port
- * @param [Function] callback
+ * @param {Function} [callback]
  * @return {Request}
  */
 
@@ -2242,6 +2281,29 @@ Remote.prototype.requestConnect = function(ip, port, callback) {
 
   if (port) {
     request.message.port = port;
+  }
+
+  request.callback(callback);
+
+  return request;
+};
+
+Remote.prototype.requestGatewayBalances = function(options, callback) {
+  assert(_.isObject(options), 'Options missing');
+  assert(options.account, 'Account missing');
+
+  const request = new Request(this, 'gateway_balances');
+
+  request.message.account = options.account;
+
+  if (!_.isUndefined(options.hotwallet)) {
+    request.message.hotwallet = options.hotwallet;
+  }
+  if (!_.isUndefined(options.strict)) {
+    request.message.strict = options.strict;
+  }
+  if (!_.isUndefined(options.ledger)) {
+    request.selectLedger(options.ledger);
   }
 
   request.callback(callback);
@@ -2274,7 +2336,11 @@ Remote.prototype.createTransaction = function(type, options = {}) {
     TrustSet: transaction.trustSet,
     OfferCreate: transaction.offerCreate,
     OfferCancel: transaction.offerCancel,
-    SetRegularKey: transaction.setRegularKey
+    SetRegularKey: transaction.setRegularKey,
+    SignerListSet: transaction.setSignerList,
+    SuspendedPaymentCreate: transaction.suspendedPaymentCreate,
+    SuspendedPaymentFinish: transaction.suspendedPaymentFinish,
+    SuspendedPaymentCancel: transaction.suspendedPaymentCancel
   };
 
   const transactionConstructor = constructorMap[type];
@@ -2303,6 +2369,32 @@ Remote.prototype.feeTx = function(units) {
   }
 
   return server._feeTx(units);
+};
+
+/**
+ * Same as feeTx, but will wait to connect to server if currently
+ * disconnected.
+ *
+ * @param {Number} fee units
+ * @param {Function} callback
+ */
+
+Remote.prototype.feeTxAsync = function(units, callback) {
+  if (!this._servers.length) {
+    callback(new Error('No servers available.'));
+    return;
+  }
+
+  let server = this.getServer();
+
+  if (!server) {
+    this.once('connected', () => {
+      server = this.getServer();
+      callback(null, server._feeTx(units));
+    });
+  } else {
+    callback(null, server._feeTx(units));
+  }
 };
 
 /**
