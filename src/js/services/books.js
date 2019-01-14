@@ -143,9 +143,20 @@ module.factory('rpBooks', ['rpNetwork', '$q', '$rootScope', '$filter', 'rpId',
         });
       }
 
+      // Currency and issuer are not set because we only want to call
+      // ratio_human which only cares about value.
+      function toAmount(value) {
+        var amount = new deprecated.Amount(value);
+        amount._is_native = value instanceof XRPValue;
+        return amount;
+      }
+
       function handleAskTrade(gets, pays) {
         $scope.$apply(function () {
-          model.last_price = gets.ratio_human(pays);
+          console.log('gets: ', gets._value.toString());
+          console.log('pays: ', pays._value.toString());
+          model.last_price = toAmount(gets).ratio_human(toAmount(pays));
+          console.log('price: ', model.last_price.to_human());
           model.updated = true;
         });
       }
@@ -161,7 +172,10 @@ module.factory('rpBooks', ['rpNetwork', '$q', '$rootScope', '$filter', 'rpId',
 
       function handleBidTrade(gets, pays) {
         $scope.$apply(function () {
-          model.last_price = pays.ratio_human(gets);
+          console.log('pays: ', pays._value.toString());
+          console.log('gets: ', gets._value.toString());
+          model.last_price = toAmount(pays).ratio_human(toAmount(gets));
+          console.log('price: ', model.last_price.to_human());
           model.updated = true;
         });
       }
