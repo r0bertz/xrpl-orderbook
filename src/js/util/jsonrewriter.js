@@ -236,9 +236,9 @@ var JsonRewriter = module.exports = {
    *  - Offer (offer_created, offer_funded, offer_partially_funded,
    *          offer_cancelled, offer_bought)
    */
-  processTxn: function (tx, meta, account) {
+  processTxn: function (api, tx, meta, account) {
     try {
-      return JsonRewriter._processTxn(tx, meta, account);
+      return JsonRewriter._processTxn(api, tx, meta, account);
     } catch (err) {
       var transaction = {};
       transaction.type = 'error';
@@ -255,7 +255,7 @@ var JsonRewriter = module.exports = {
     }
   },
 
-  _processTxn: function (tx, meta, account) {
+  _processTxn: function (api, tx, meta, account) {
     var obj = {};
 
     // Currency balances that have been affected by the transaction
@@ -308,7 +308,7 @@ var JsonRewriter = module.exports = {
             transaction.type = 'offernew';
             transaction.pays = deprecated.Amount.from_json(tx.TakerPays);
             transaction.gets = deprecated.Amount.from_json(tx.TakerGets);
-            transaction.sell = tx.Flags & Transaction.flags.OfferCreate.Sell;
+            transaction.sell = tx.Flags & api.txFlags.OfferCreate.Sell;
             break;
 
           case 'OfferCancel':

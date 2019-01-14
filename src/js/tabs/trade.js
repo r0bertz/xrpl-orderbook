@@ -359,7 +359,7 @@ TradeTab.prototype.angular = function(module)
         setEngineStatus(res, true, type);
         order.mode = "done";
 
-        var tx = rewriter.processTxn(res, res.metadata, id.account);
+        var tx = rewriter.processTxn($network.api, res, res.metadata, id.account);
         if (tx.effects) {
           for (var i = 0; i < tx.effects.length; i++) {
             var messageType = tx.effects[i].type;

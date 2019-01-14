@@ -162,6 +162,8 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
         console.log('Error getSettings: ', error);
     });
 
+    account = data.account;
+
     reset();
 
     $scope.loadingAccount = true;
@@ -351,7 +353,7 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
 
       if (data.transactions) {
         data.transactions.reverse().forEach(function (e, key) {
-          processTxn(e.tx, e.meta, true);
+          processTxn($network.api, e.tx, e.meta, true);
         });
 
         $scope.$broadcast('$eventsUpdate');
@@ -371,7 +373,7 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
   function handleAccountEvent(e)
   {
     $scope.$apply(function () {
-      processTxn(e.transaction, e.meta);
+      processTxn($network.api, e.transaction, e.meta);
       $scope.$broadcast('$eventsUpdate');
     });
   }
@@ -379,10 +381,9 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
   /**
    * Process a transaction and add it to the history table.
    */
-  function processTxn(tx, meta, is_historic)
+  function processTxn(api, tx, meta, is_historic)
   {
-    // TODO(lezhang): Fix this.
-    var processedTxn = rewriter.processTxn(tx, meta, account);
+    var processedTxn = rewriter.processTxn(api, tx, meta, account);
 
     if (processedTxn && processedTxn.error) {
       var err = processedTxn.error;

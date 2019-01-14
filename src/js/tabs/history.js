@@ -125,7 +125,7 @@ HistoryTab.prototype.angular = function (module) {
                 continue;
 
               // Push
-              var tx = rewriter.processTxn(data.transactions[i].tx, data.transactions[i].meta, $id.account);
+              var tx = rewriter.processTxn($network.api, data.transactions[i].tx, data.transactions[i].meta, $id.account);
               if (tx) history.push(tx);
             }
 
@@ -435,7 +435,7 @@ HistoryTab.prototype.angular = function (module) {
             var transactions = [];
 
             data.transactions.forEach(function (e) {
-              var tx = rewriter.processTxn(e.tx, e.meta, $id.account);
+              var tx = rewriter.processTxn($network.api, e.tx, e.meta, $id.account);
               if (tx) {
                 var date = deprecated.utils.toTimestamp(tx.date);
 
