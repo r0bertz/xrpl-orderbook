@@ -11,8 +11,6 @@ const {XRPValue, IOUValue} = require('ripple-lib-value');
 const {isValidAddress} = require('ripple-address-codec');
 const {ACCOUNT_ONE, ACCOUNT_ZERO} = require('./constants');
 
-                                 
-
 function Amount(value = new XRPValue(NaN)) {
   // Json format:
   //  integer : XRP
@@ -105,9 +103,7 @@ Amount.NaN = function() {
   return result;                      // but let's be careful
 };
 
-Amount.from_components_unsafe = function(value       , currency          ,
-  issuer        , isNative         
-) {
+Amount.from_components_unsafe = function(value, currency, issuer, isNative) {
   const result = new Amount(value);
   result._is_native = isNative;
   result._currency = currency;
@@ -119,7 +115,7 @@ Amount.from_components_unsafe = function(value       , currency          ,
 };
 
 // be sure that _is_native is set properly BEFORE calling _set_value
-Amount.prototype._set_value = function(value       ) {
+Amount.prototype._set_value = function(value) {
   this._value = value.isZero() && value.isNegative() ?
       value.negate() : value;
   this._check_limits();

@@ -143,20 +143,21 @@ module.factory('rpBooks', ['rpNetwork', '$q', '$rootScope', '$filter', 'rpId',
         });
       }
 
-      // Currency and issuer are not set because we only want to call
-      // ratio_human which only cares about value.
-      function toAmount(value) {
-        var amount = new deprecated.Amount(value);
-        amount._is_native = value instanceof XRPValue;
-        return amount;
+      function normalize(value) {
+        if (value instanceof XRPValue) {
+          // The XRPValue returns from orderbook trade event is in drops.
+          // Turning it into IOUValue is a necessary hack because if XRPValue is
+          // divisor, it will become drops again during division as defined in
+          // ripple-lib-value.
+          return new IOUValue($network.apiOrderbook.dropsToXrp(value._value));
+        }
+        return value
       }
 
       function handleAskTrade(gets, pays) {
         $scope.$apply(function () {
-          console.log('gets: ', gets._value.toString());
-          console.log('pays: ', pays._value.toString());
-          model.last_price = toAmount(gets).ratio_human(toAmount(pays));
-          console.log('price: ', model.last_price.to_human());
+          model.last_price = new deprecated.Amount(
+            normalize(gets).divide(normalize(pays)));
           model.updated = true;
         });
       }
@@ -172,10 +173,8 @@ module.factory('rpBooks', ['rpNetwork', '$q', '$rootScope', '$filter', 'rpId',
 
       function handleBidTrade(gets, pays) {
         $scope.$apply(function () {
-          console.log('pays: ', pays._value.toString());
-          console.log('gets: ', gets._value.toString());
-          model.last_price = toAmount(pays).ratio_human(toAmount(gets));
-          console.log('price: ', model.last_price.to_human());
+          model.last_price = new deprecated.Amount(
+            normalize(pays).divide(normalize(gets)));
           model.updated = true;
         });
       }
