@@ -6,6 +6,7 @@ window.store = require('store');
 window.Spinner = require('spin');
 window.RippleAPI = require('ripple-lib').RippleAPI;
 window.OrderBook = require('ripple-lib-orderbook').OrderBook;
+window.XRPValue = require('ripple-lib-value').XRPValue;
 window.deprecated = require('../deprecated');
 window.RippleAddressCodec = require('ripple-address-codec');
 window.RippleBinaryCodec = require('ripple-binary-codec');

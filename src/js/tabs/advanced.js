@@ -43,7 +43,8 @@ AdvancedTab.prototype.angular = function(module)
     $scope.editAcctOptions = false;
     $scope.maxFeeXRP = $scope.options.connection.maxFeeXRP;
 
-    $scope.saveSetings = function() {
+    // TODO(lezhang): verify this is called in ServerRowCtrl
+    $scope.saveSettings = function() {
       // Save in local storage
       if (!store.disabled) {
         store.set('ripple_settings', angular.toJson($scope.options));
@@ -51,8 +52,7 @@ AdvancedTab.prototype.angular = function(module)
     };
 
     $scope.saveBlob = function() {
-
-      $scope.saveSetings();
+      $scope.saveSettings();
 
       $scope.editBlob = false;
       $scope.saved = false;
@@ -62,16 +62,13 @@ AdvancedTab.prototype.angular = function(module)
     };
 
     $scope.saveMaxNetworkFee = function () {
-      // Save in local storage
-      if (!store.disabled) {
-        $scope.options.connection.maxFeeXRP = $scope.maxFeeXRP;
-        store.set('ripple_settings', angular.toJson($scope.options));
-      }
-
+      $scope.options.connection.maxFeeXRP = $scope.maxFeeXRP;
       $scope.editMaxNetworkFee = false;
 
+      $scope.saveSettings();
+
       // Reload
-      $scope.$emit('serverChange', $scope.options.connection);
+      $scope.$emit('serverChange');
       $route.reload();
     };
 
@@ -133,9 +130,9 @@ AdvancedTab.prototype.angular = function(module)
         $scope.editing = false;
         $scope.options.connection.server = generateUrl($scope.server);
 
-        $scope.saveSetings();
+        $scope.saveSettings();
 
-        $scope.$emit('serverChange', $scope.options.connection);
+        $scope.$emit('serverChange');
 
           // Reload
         $route.reload();

@@ -691,12 +691,12 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
 
   // Reconnect on server setting changes
   var netConnectedListener = function(){};
-  $scope.$on('serverChange', function(event, serverSettings) {
+  $scope.$on('serverChange', function(event) {
     if ($scope.onlineMode) {
       var address = $scope.address;
 
       $network.disconnect();
-      $network.connect(serverSettings);
+      $network.connect();
 
       // Remove listener
       netConnectedListener();

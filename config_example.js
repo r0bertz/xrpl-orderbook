@@ -8,7 +8,8 @@ var Options = {
   connection: {
     server: 'wss://s1.ripple.com',
     trace: false,
-    maxFeeXRP: '0.0002'
+    maxFeeXRP: '0.0002',
+    timeout: 30000,
   },
 
   // Number of transactions each page has in balance tab notifications
@@ -29,14 +30,12 @@ var Options = {
 // Load client-side overrides
 if (store.enabled) {
   var settings = JSON.parse(store.get('ripple_settings') || '{}');
-
   if (settings.connection) {
-    if (!settings.connection.server) {
-      settings.connection.server = Options.connection.server;
-    }
-    if (!settings.connection.maxFeeXRP) {
-      settings.connection.maxFeeXRP = Options.connection.maxFeeXRP;
-    }
+    Object.keys(Options.connection).forEach(function(key) {
+      if (Options.connection[key] && !settings.connection[key]) {
+        settings.connection[key] = Options.connection[key];
+      }
+    });
     Options.connection = settings.connection;
   }
 }

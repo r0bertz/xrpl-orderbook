@@ -23,13 +23,13 @@ module.factory('rpNetwork', ['$rootScope', function($scope)
   var Network = function() {
     this.connected = false;
     this.api = new RippleAPI(Options.connection);
+    this.apiOrderbook = new RippleAPI(Options.connection);
     this.remote = this.api;
   };
 
-  Network.prototype.connect = async function(serverSettings) {
-    serverSettings = serverSettings ? serverSettings : Options.connection;
-
-    this.api = new RippleAPI(serverSettings);
+  Network.prototype.connect = async function() {
+    this.api = new RippleAPI(Options.connection);
+    this.apiOrderbook = new RippleAPI(Options.connection);
     this.remote = this.api;
     this.api.on('connected', () => {
       console.log('connected');
@@ -54,14 +54,13 @@ module.factory('rpNetwork', ['$rootScope', function($scope)
       }
     });
 
-    if (serverSettings && serverSettings.server) {
-      await this.api.connect();
-    }
+    await Promise.all([this.api.connect(), this.apiOrderbook.connect()]);
   };
 
   Network.prototype.disconnect = async function() {
     if (this.connected) {
-      await this.api.disconnect();
+      await Promise.all([this.api.disconnect(),
+          this.apiOrderbook.disconnect()]);
     }
   };
 

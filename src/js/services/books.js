@@ -13,7 +13,7 @@ module.factory('rpBooks', ['rpNetwork', '$q', '$rootScope', '$filter', 'rpId',
   var rowCount;
 
   function loadBook(gets, pays) {
-    return new OrderBook.createOrderBook($network.api, {
+    return new OrderBook.createOrderBook($network.apiOrderbook, {
       currency_gets: gets.currency,
       issuer_gets: gets.issuer,
       currency_pays: pays.currency,
