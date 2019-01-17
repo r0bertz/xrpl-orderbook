@@ -654,6 +654,16 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
   //   }
   // });
 
+  $scope.$on('$netConnected', function() {
+    var address = $scope.address;
+
+    if (address) {
+      console.log('$scope.address: ', address);
+
+      $id.setAccount(address);
+    }
+  });
+
   $scope.$on('$idAccountLoad', function (e, data) {
     // fix blob if wrong
     if (_.isArray($scope.userBlob.data.clients)) {
@@ -664,14 +674,6 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
     if ($scope.connected) {
       handleAccountLoad(e, data);
     }
-
-    // Server is not connected yet. Handle account load after server response.
-    $scope.$on('$netConnected', function(){
-      if ($.isEmptyObject($scope.account)) {
-        $scope.$broadcast('$idAccountUnload', {account: $scope.account});
-        handleAccountLoad(e, data);
-      }
-    });
   });
 
   $scope.$on('$idAccountUnload', handleAccountUnload);
@@ -690,23 +692,10 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
   $scope.onlineMode ? $network.connect() : $network.disconnect();
 
   // Reconnect on server setting changes
-  var netConnectedListener = function(){};
   $scope.$on('serverChange', function(event) {
     if ($scope.onlineMode) {
-      var address = $scope.address;
-
       $network.disconnect();
       $network.connect();
-
-      // Remove listener
-      netConnectedListener();
-      netConnectedListener = $scope.$on('$netConnected', function() {
-        console.log('$scope.address', address);
-
-        if (address) {
-          $id.setAccount(address);
-        }
-      });
     }
   });
 
