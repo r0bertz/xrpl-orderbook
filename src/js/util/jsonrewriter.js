@@ -323,6 +323,10 @@ var JsonRewriter = module.exports = {
             transaction.type = 'accountset';
             break;
 
+          case 'SetRegularKey':
+            transaction.type = 'setregularkey';
+            break;
+
           default:
             console.log('Unknown transaction type: "'+tx.TransactionType+'"', tx);
         }

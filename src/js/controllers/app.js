@@ -152,7 +152,7 @@ module.controller('AppCtrl', ['$rootScope', '$compile', 'rpId', 'rpNetwork',
           // If we are using a regular wallet file (no masterkey)
           // check to see if regular key is valid
           var regularKeyPublic = new RippleAddress($scope.userBlob.data.regularKey).getAddress();
-          if (regularKeyPublic !== settings.RegularKey) {
+          if (regularKeyPublic !== settings.regularKey) {
             invalidRegularWallet = true;
           }
         }

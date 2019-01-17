@@ -1,7 +1,8 @@
 var util = require('util'),
-    Tab  = require('../client/tab').Tab,
+    Tab = require('../client/tab').Tab,
     Base58Utils = require('../util/base58'),
     RippleAddress = require('../util/types').RippleAddress,
+    Tx = require('../util/tx'),
     fs = require('fs');
 
 var SecurityTab = function ()
@@ -22,7 +23,7 @@ SecurityTab.prototype.generateHtml = function ()
 SecurityTab.prototype.angular = function (module) {
   module.controller('SecurityCtrl', ['$scope', 'rpId', 'rpKeychain', '$timeout',
     'rpAuthFlow', 'rpPopup', 'rpNetwork', 'rpFileDialog',
-    function ($scope, $id, keychain, $timeout, authflow, popup, network, fileDialog)
+    function ($scope, $id, keychain, $timeout, authflow, popup, $network, fileDialog)
   {
     if (!$id.loginStatus) $id.goId();
 
@@ -36,13 +37,13 @@ SecurityTab.prototype.angular = function (module) {
     }
 
     $scope.settingsPage = 'security';
-    
+
     $scope.showComponent = [];
 
     $scope.isUnlocked = true; //hiding the dialog for now
     //$scope.isUnlocked = keychain.isUnlocked($id.account);
     $scope.requirePasswordChanged = false;
-   
+
     $scope.validation_pattern_phone = /^[0-9]*$/;
 
     $scope.$on('$blobUpdate', onBlobUpdate);
@@ -51,36 +52,12 @@ SecurityTab.prototype.angular = function (module) {
     $scope.security = {};
     $scope.mode = {};
 
-    function saveTransaction(tx) {
-      tx.tx_json.Sequence = Number($scope.sequence);
-      $scope.incrementSequence();
-      tx.complete();
-      $scope.signedTransaction = tx.sign().serialize().to_hex();
-      $scope.txJSON = JSON.stringify(tx.tx_json);
-      $scope.hash = tx.hash('HASH_TX_ID', false, undefined);
-      $scope.mode.offlineSending = true;
-      var sequenceNumber = (Number(tx.tx_json.Sequence));
-      var sequenceLength = sequenceNumber.toString().length;
-      var txnName = $scope.userBlob.data.account_id + '-' + new Array(10 - sequenceLength + 1).join('0') + sequenceNumber + '.txt';
-      var txData = JSON.stringify({
-        tx_json: tx.tx_json,
-        hash: $scope.hash,
-        tx_blob: $scope.signedTransaction
-      });
-      if (!$scope.userBlob.data.defaultDirectory) {
-        $scope.fileInputClick(txnName, txData);
-      }
-      else {
-        $scope.saveToDisk(txnName, txData);
-      }
-    }
-
     function onBlobUpdate()
     {
       if ("function" === typeof $scope.userBlob.encrypt) {
         $scope.enc = $scope.userBlob.encrypt();
       }
-      
+
 
       $scope.requirePassword = !$scope.userBlob.data.persistUnlock;
     }
@@ -98,7 +75,7 @@ SecurityTab.prototype.angular = function (module) {
       keychain.getSecret($id.account, $id.username, $scope.sessionPassword, function(err, secret) {
         $scope.isConfirming = false;
         $scope.sessionPassword = '';
-        
+
         if (err) {
           $scope.unlockError = err;
           return;
@@ -124,12 +101,12 @@ SecurityTab.prototype.angular = function (module) {
 
     $scope.setPasswordProtection = function () {
       $scope.editUnlock = false;
-      
+
       //ignore it if we are not going to change anything
       if (!$scope.requirePasswordChanged) return;
       $scope.requirePasswordChanged = false;
       $scope.requirePassword        = !$scope.requirePassword;
-      
+
       keychain.setPasswordProtection($scope.requirePassword, function(err, resp){
         if (err) {
           console.log(err);
@@ -191,7 +168,7 @@ SecurityTab.prototype.angular = function (module) {
 
     $scope.requestToken = function () {
       var force = $scope.via === 'app' ? true : false;
-      
+
       $scope.isRequesting = true;
       requestToken(force, function(err, resp) {
         $scope.isRequesting = false;
@@ -205,32 +182,31 @@ SecurityTab.prototype.angular = function (module) {
       $scope.regularKey = Base58Utils.encode_base_check(33, sjcl.codec.bytes.fromBits(sjcl.random.randomWords(4)));
       $scope.regularKeyPublic = new RippleAddress($scope.regularKey).getAddress();
 
-      var tx = network.remote.transaction();
+      var onTransactionSucess = function(res) {
+        console.log('Set regular key success', res);
+      };
 
-      tx.on('success', function (res) {
-        console.log('success', res);
-      });
+      var onTransactionSubmit = function(res) {
+        console.log('Set regular key submitted', res);
+      };
 
-      tx.on('proposed', function (res) {
-        console.log('proposed', res);
-      });
-
-      tx.on('error', function (res) {
-        console.log('error', res);
-      });
+      var onTransactionError = function(res) {
+        console.log('Set regular key error', res);
+      };
 
       // Attach the key to the account
       keychain.requestSecret($id.account, $id.username, function (err, secret) {
-        tx.secret(secret);
-        tx.setRegularKey({
-          account: $scope.address,
-          regular_key: $scope.regularKeyPublic
-        });
-        if ($scope.onlineMode) {
-          tx.submit();
-        } else {
-          saveTransaction(tx);
+        if (err) {
+          console.error(err);
+          return;
         }
+
+        $network.api.prepareSettings($id.account,{
+          regularKey: $scope.regularKeyPublic
+        }, Tx.Instructions).then(prepared => {
+          $network.submitTx(prepared, secret, onTransactionSucess,
+              onTransactionError, onTransactionSubmit);
+        }).catch(console.error)
       });
 
       // Save the key in the blob
@@ -240,30 +216,31 @@ SecurityTab.prototype.angular = function (module) {
     // Remove regular key from master wallet file
     // Unset regular key with Ripple transaction, so key is no longer valid
     $scope.removeRegularKey = function() {
-      var tx = network.remote.transaction();
+      var onTransactionSucess = function(res) {
+        console.log('Remove regular key success: ', res);
+      };
 
-      tx.on('success', function (res) {
-        console.log('success', res);
-      });
+      var onTransactionSubmit = function(res) {
+        console.log('Remove regular key submitted: ', res);
+      };
 
-      tx.on('proposed', function (res) {
-        console.log('proposed', res);
-      });
-
-      tx.on('error', function (res) {
-        console.log('error', res);
-      });
+      var onTransactionError = function(res) {
+        console.log('Remove regular key error: ', res);
+      };
 
       keychain.requestSecret($id.account, $id.username, function (err, secret) {
-        tx.secret(secret);
-        tx.setRegularKey({
-          account: $scope.address
-        });
-        if ($scope.onlineMode) {
-          tx.submit();
-        } else {
-          saveTransaction(tx);
+        if (err) {
+          console.error(err);
+          return;
         }
+
+        // TODO(lezhang): tell user the key is removed only on success.
+        $network.api.prepareSettings($id.account,{
+          regularKey: null
+        }, Tx.Instructions).then(prepared => {
+          $network.submitTx(prepared, secret, onTransactionSucess,
+              onTransactionError, onTransactionSubmit);
+        }).catch(console.error)
       });
 
       // Remove the key from the blob
