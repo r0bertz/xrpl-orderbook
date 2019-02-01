@@ -37,7 +37,7 @@ AccountFlagsTab.prototype.angular = function(module) {
     disableMasterKey:      0x00100000, // force regular key
     noFreeze:              0x00200000, // permanently disallow freezing trustlines
     globalFreeze:          0x00400000, // trustlines globally frozen
-    defaultRipple:         0x00800000, // enable rippling by default 
+    defaultRipple:         0x00800000, // enable rippling by default
   };
 
   module.controller('AccountFlagsCtrl', ['$scope', 'rpId',
@@ -63,6 +63,10 @@ AccountFlagsTab.prototype.angular = function(module) {
         edit: false,
         description: 'Disallow XRP'
       },
+      disableMasterKey: {
+        edit: false,
+        description: 'Disable master key'
+      },
       enableTransactionIDTracking: {
         edit: false,
         description: 'Enable tracking the ID of the most recent transaction'
@@ -81,6 +85,7 @@ AccountFlagsTab.prototype.angular = function(module) {
       $scope.flags.requireAuthorization.newEnabled = $scope.flags.requireAuthorization.enabled;
       $scope.flags.globalFreeze.newEnabled = $scope.flags.globalFreeze.enabled;
       $scope.flags.disallowIncomingXRP.newEnabled = $scope.flags.disallowIncomingXRP.enabled;
+      $scope.flags.disableMasterKey.newEnabled = $scope.flags.disableMasterKey.enabled;
       $scope.flags.enableTransactionIDTracking.newEnabled = $scope.flags.enableTransactionIDTracking.enabled;
     }, true);
 
