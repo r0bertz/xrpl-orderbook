@@ -397,6 +397,7 @@ TradeTab.prototype.angular = function(module)
           return;
         }
 
+        // TODO(lezhang): dedup.
         function toAmount(amount) {
           if (amount.is_native()) {
             return {

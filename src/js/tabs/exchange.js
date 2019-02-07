@@ -1,6 +1,7 @@
 var util = require('util'),
     webutil = require('../util/web'),
-    Tab = require('../client/tab').Tab;
+    Tab = require('../client/tab').Tab,
+    Tx = require('../util/tx');
 
 var ExchangeTab = function ()
 {
@@ -86,7 +87,18 @@ ExchangeTab.prototype.angular = function (module)
 
 
       $scope.reset_paths = function () {
-        $network.remote.closeCurrentPathFind();
+        $network.api.request('path_find', {
+          'subcommand': 'close',
+        }).then(() => {
+        }).catch(error => {
+          // Ignore RippledError: noPathRequest.
+          if (error.name !== 'RippledError' ||
+              error.data.error !== 'noPathRequest') {
+            console.log("Error request 'path_find' subcommand 'close': ",
+                        error);
+          }
+        })
+
         var exchange = $scope.exchange;
 
         exchange.alternatives = [];
@@ -100,13 +112,10 @@ ExchangeTab.prototype.angular = function (module)
         $scope.reset_paths();
 
         // if formatted or money to exchange is 0 then don't calculate paths or offer to exchange
-        if (parseFloat(exchange.amount) === 0 || !exchange.currency_name)
-        {
+        if (parseFloat(exchange.amount) === 0 || !exchange.currency_name) {
           $scope.error_type = 'required';
           return false;
-        }
-
-        else {
+        } else {
           $scope.error_type = '';
         }
 
@@ -132,6 +141,7 @@ ExchangeTab.prototype.angular = function (module)
         var refDate = new Date(new Date().getTime() + 5 * 60000);
 
         exchange.amount_feedback = deprecated.Amount.from_human('' + exchange.amount + ' ' + matchedCurrency, { reference_date: refDate });
+        // TODO(lezhang): Is this right?
         exchange.amount_feedback.set_issuer($id.account);
 
         if (exchange.amount_feedback.is_valid() && exchange.amount_feedback.is_positive()) {
@@ -156,20 +166,7 @@ ExchangeTab.prototype.angular = function (module)
           var isIssuer = $scope.generate_issuer_currencies();
           var lastUpdate;
 
-          // Start path find
-          var pf = $network.remote.createPathFind({
-            src_account: $id.account,
-            dst_account: $id.account,
-            dst_amount: amount
-          });
-
-          pf.on('error', function() {
-            $scope.$apply(function () {
-              $scope.exchange.path_status = 'error';
-            });
-          });
-
-          pf.on('update', function(upd) {
+          var updatePath = function(upd) {
             $scope.$apply(function () {
               lastUpdate = new Date();
 
@@ -212,6 +209,34 @@ ExchangeTab.prototype.angular = function (module)
                   return true;
                 });
               }
+            });
+          };
+
+          $network.api.connection.on('path_find', updatePath);
+
+          function toRippledAmount(amount) {
+            if (amount._currency.get_iso() === 'XRP') {
+              return $network.api.xrpToDrops(amount._value._value)
+            }
+            return {
+              currency: amount._currency.get_iso(),
+              issuer: amount._issuer,
+              value: amount._value.toString()
+            }
+          }
+
+          // Start path find
+          $network.api.request('path_find', {
+            'subcommand': 'create',
+            'source_account': $id.account,
+            'destination_account': $id.account,
+            'destination_amount': toRippledAmount(amount)
+          })
+          .then(updatePath)
+          .catch(error => {
+            console.log("Error request 'path_find' subcommand 'create': ", error);
+            $scope.$apply(function () {
+              $scope.exchange.path_status = 'error';
             });
           });
         });
@@ -288,7 +313,18 @@ ExchangeTab.prototype.angular = function (module)
         // Stop the pathfind - once we're on the confirmation page, we'll freeze
         // the last state we had so the user doesn't get surprises when
         // submitting.
-        $network.remote.closeCurrentPathFind();
+        $network.api.request('path_find', {
+          'subcommand': 'close',
+        }).then(() => {
+        }).catch(error => {
+          // Ignore RippledError: noPathRequest.
+          if (error.name !== 'RippledError' ||
+              error.data.error !== 'noPathRequest') {
+            console.log("Error request 'path_find' subcommand 'close': ",
+                        error);
+          }
+        })
+
         $scope.mode = "confirm";
       };
 
@@ -304,48 +340,12 @@ ExchangeTab.prototype.angular = function (module)
 
         amount.set_issuer($id.account);
 
-        var tx = $network.remote.transaction();
-
-        // Add memo to tx
-        tx.addMemo('client', 'rt' + $rootScope.version);
-
-        // Destination tag
-        var destinationTag = webutil.getDestTagFromAddress($id.account);
-        if (destinationTag) {
-          tx.setDestinationTag(webutil.getDestTagFromAddress($id.account));
-        }
-        tx.payment($id.account, $id.account, amount.to_json());
-        tx.setSendMax($scope.exchange.alt.send_max);
-        tx.setPaths($scope.exchange.alt.paths);
-
-        if ($scope.exchange.secret) {
-          tx.setSecret($scope.exchange.secret);
-        } else {
-          // Get secret asynchronously
-          keychain.requestSecret($id.account, $id.username,
-            function (err, secret) {
-              if (err) {
-                console.log('client: exchange tab: error while ' +
-                  'unlocking wallet: ', err);
-                $scope.mode = 'error';
-                $scope.error_type = 'unlockFailed';
-
-                return;
-              }
-
-              $scope.exchange.secret = secret;
-              $scope.exchange_confirmed();
-            });
-          return;
-        }
-
-        tx.on('proposed', function (res) {
+        var onTransactionSubmit = function (res) {
           $scope.$apply(function () {
+            $scope.mode = "status";
             setEngineStatus(res, false);
-            $scope.exchanged(tx.hash);
 
             // Remember currency and increase order
-
             for (var i = 0; i < $scope.currencies_all.length; i++) {
               if ($scope.currencies_all[i].value.toLowerCase() === $scope.exchange.amount_feedback.currency().get_iso().toLowerCase()) {
                 $scope.currencies_all[i].order++;
@@ -353,47 +353,72 @@ ExchangeTab.prototype.angular = function (module)
               }
             }
           });
-        });
-        tx.on('success', function(res) {
+        };
+
+        var onTransactionSuccess = function(res) {
           setEngineStatus(res, true);
-        });
-        tx.on('error', function (res) {
+        };
+
+        var onTransactionError = function (res) {
           setImmediate(function () {
             $scope.$apply(function () {
               $scope.mode = 'error';
-
-              if (res.result === 'tejMaxFeeExceeded') {
-                $scope.error_type = 'maxFeeExceeded';
-              }
-
-              if (res.error === 'remoteError' &&
-                  res.remote.error === 'noPath') {
-                $scope.mode = 'status';
-                $scope.tx_result = 'noPath';
-              }
             });
           });
-        });
-        tx.submit();
+        };
+
+        keychain.requestSecret($id.account, $id.username,
+          function (err, secret) {
+            if (err) {
+              console.log('client: exchange tab: error while ' +
+                'unlocking wallet: ', err);
+              $scope.mode = 'error';
+              $scope.error_type = 'unlockFailed';
+
+              return;
+            }
+
+            // TODO(lezhang): dedup.
+            function toAmount(amount) {
+              if (amount.is_native()) {
+                return {
+                  currency: 'drops',
+                  value: amount.to_text()
+                }
+              } else {
+                return {
+                  currency: amount.currency().get_iso(),
+                  counterparty: amount.issuer(),
+                  value: amount.to_text()
+                }
+              }
+            }
+
+            $network.api.preparePayment($id.account, {
+              source: {
+                address: $id.account,
+                maxAmount: toAmount($scope.exchange.alt.send_max)
+              },
+              destination: {
+                address: $id.account,
+                tag: webutil.getDestTagFromAddress($id.account),
+                amount: toAmount(amount)
+              },
+              memos: [{
+                type: $network.api.convertStringToHex('client'),
+                format: $network.api.convertStringToHex('rt' +
+                  $rootScope.version)
+              }],
+              paths: JSON.stringify($scope.exchange.alt.paths)
+            }, Tx.Instructions).then(prepared => {
+              console.log(prepared);
+              $network.submitTx(prepared, secret, onTransactionSuccess, onTransactionError, onTransactionSubmit);
+            }).catch(console.error);
+          }
+        );
+
 
         $scope.mode = 'sending';
-      };
-
-      /**
-       * N6. exchanged page
-       */
-      $scope.exchanged = function (hash) {
-        $scope.mode = "status";
-        $network.remote.on('transaction', handleAccountEvent);
-
-        function handleAccountEvent(e) {
-          $scope.$apply(function () {
-            if (e.transaction.hash === hash) {
-              setEngineStatus(e, true);
-              $network.remote.removeListener('transaction', handleAccountEvent);
-            }
-          });
-        }
       };
 
       $scope.reset();
@@ -402,7 +427,17 @@ ExchangeTab.prototype.angular = function (module)
 
       // Stop the pathfinding when leaving the page
       $scope.$on('$destroy', function() {
-        $network.remote.closeCurrentPathFind();
+        $network.api.request('path_find', {
+          'subcommand': 'close',
+        }).then(() => {
+        }).catch(error => {
+          // Ignore RippledError: noPathRequest.
+          if (error.name !== 'RippledError' ||
+              error.data.error !== 'noPathRequest') {
+            console.log("Error request 'path_find' subcommand 'close': ",
+                        error);
+          }
+        })
       });
     }]);
 
