@@ -7,7 +7,7 @@ var gulp = require('gulp'),
   merge = require('merge-stream'),
   modRewrite = require('connect-modrewrite'),
   webpack = require('webpack'),
-  UglifyJsPlugin = require('uglifyjs-webpack-plugin'),
+  TerserPlugin = require('terser-webpack-plugin'),
   jade = require('jade'),
   NwBuilder = require('nw-builder'),
   useref = require('gulp-useref'),
@@ -67,12 +67,25 @@ gulp.task('webpack:vendor:dist', function() {
       output: {
         filename: "vendor.js"
       },
+      optimization: {
+        minimizer: [new TerserPlugin({
+          cache: true,
+          parallel: true,
+          extractComments: 'all',
+          terserOptions: {
+            parse: {},
+            compress: {},
+            mangle: true,
+          },
+        })],
+      },
       module: {
         rules: [
           { test: /\.js$/, exclude: /node_modules/, loader: 'babel-loader' }
         ]
       },
       target: 'web',
+      cache: true
     }))
     .pipe(gulp.dest(BUILD_DIR + 'js/'))
 });
@@ -111,13 +124,18 @@ gulp.task('webpack:dist', function() {
         filename: "app.js"
       },
       target: 'web',
-      // TODO: Figure out how to make this work.
-      // optimization: {
-      //   minimizer: [new UglifyJsPlugin()]
-      // },
-      plugins: [
-        new webpack.BannerPlugin('Ripple Admin Console v' + meta.version + '\nCopyright (c) ' + new Date().getFullYear() + ' ' + meta.author.name + '\nLicensed under the ' + meta.license + ' license.')
-      ]
+      optimization: {
+        minimizer: [new TerserPlugin({
+          cache: true,
+          parallel: true,
+          extractComments: 'all',
+          terserOptions: {
+            parse: {},
+            compress: {},
+            mangle: true,
+          },
+        })],
+      },
     }))
     .pipe(gulp.dest(BUILD_DIR + 'js/'));
 });
