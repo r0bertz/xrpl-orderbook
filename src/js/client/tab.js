@@ -1,7 +1,3 @@
-var util = require('util'),
-    webutil = require('../util/web'),
-    log = require('../util/log');
-
 var Tab = function (config)
 {
 };
