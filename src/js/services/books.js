@@ -27,7 +27,7 @@ module.factory('rpBooks', ['rpNetwork', '$q', '$rootScope', '$filter',
     var lastprice;
     var current;
     var rpamount = $filter('rpamount');
-    var newData = $.extend(true, {}, data);
+    var newData = _.extend(true, {}, data);
 
     rowCount = 0;
     newData = _.values(_.compact(_.map(newData, function(d, i) {

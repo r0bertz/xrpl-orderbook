@@ -1,5 +1,4 @@
-var module = angular.module('filters', []),
-    webutil = require('../util/web');
+var module = angular.module('filters', []);
 
 var iso4217 = require('../data/iso4217');
 
@@ -10,7 +9,7 @@ var iso4217 = require('../data/iso4217');
  */
 module.filter('rpamount', function () {
   return function (input, options) {
-    var opts = jQuery.extend(true, {}, options);
+    var opts = _.extend(true, {}, options);
 
     if ("number" === typeof opts) {
       opts = {

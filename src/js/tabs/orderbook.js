@@ -162,7 +162,7 @@ OrderbookTab.prototype.angular = function(module)
       var rpamountFilter = $filter('rpamount');
 
       $scope.$watchCollection('book', function () {
-        if (!jQuery.isEmptyObject($scope.book)) {
+        if (!_.isEmpty($scope.book)) {
           ['asks','bids'].forEach(function(type){
             if ($scope.book[type]) {
               $scope.book[type].forEach(function(order){
