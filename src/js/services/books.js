@@ -7,8 +7,8 @@
 var module = angular.module('books', ['network']);
 
 
-module.factory('rpBooks', ['rpNetwork', '$q', '$rootScope', '$filter', 'rpId',
-                           function($network, $q, $scope, $filter, $id) {
+module.factory('rpBooks', ['rpNetwork', '$q', '$rootScope', '$filter',
+                           function($network, $q, $scope, $filter) {
 
   var rowCount;
 
@@ -84,7 +84,7 @@ module.factory('rpBooks', ['rpNetwork', '$q', '$rootScope', '$filter', 'rpId',
       });
 
       // Don't combine current user's orders.
-      if (d.Account === $id.account) {
+      if (d.Account === $scope.account) {
         d.my = true;
       }
 

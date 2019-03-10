@@ -164,22 +164,6 @@ module.filter('rpamountsubtract', function () {
 });
 
 /**
- * Angular filter for Moment.js.
- *
- * Displays a timestamp as "x minutes ago".
- */
-var momentCache = {};
-
-module.filter('rpfromnow', function () {
-  return function (input) {
-    // This is an expensive function, cache it
-    if (!momentCache[input]) momentCache[input] = moment(input).fromNow();
-
-    return momentCache[input];
-  };
-});
-
-/**
  * Show contact name or short address
  */
 module.filter('rpcontactname', ['$rootScope', function ($scope) {

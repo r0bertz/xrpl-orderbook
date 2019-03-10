@@ -9,12 +9,10 @@ var gulp = require('gulp'),
   webpack = require('webpack'),
   UglifyJsPlugin = require('uglifyjs-webpack-plugin'),
   jade = require('jade'),
-  jadeL10n = require('jade-l10n'),
   NwBuilder = require('nw-builder'),
   useref = require('gulp-useref'),
   gulpWebpack = require('webpack-stream'),
-  meta = require('./package.json'),
-  languages = require('./l10n/languages.json').active;
+  meta = require('./package.json');
 
 var $ = require('gulp-load-plugins')({
   pattern: ['gulp-*', 'del', 'browser-sync']
@@ -47,9 +45,6 @@ gulp.task('webpack:vendor:dev', function() {
   return gulp.src('src/js/entry/vendor.js')
     .pipe(gulpWebpack({
       mode: 'development',
-      node: {
-        fs: 'empty'
-      },
       output: {
         filename: 'vendor.js'
       },
@@ -58,7 +53,7 @@ gulp.task('webpack:vendor:dev', function() {
           { test: /\.js$/, exclude: /node_modules/, loader: 'babel-loader' }
         ]
       },
-      target: 'node-webkit',
+      target: 'web',
       cache: true,
     }))
     .pipe(gulp.dest(TMP_DIR + 'js/'))
@@ -69,9 +64,6 @@ gulp.task('webpack:vendor:dist', function() {
   return gulp.src('src/js/entry/vendor.js')
     .pipe(gulpWebpack({
       mode: 'production',
-      node: {
-        fs: 'empty'
-      },
       output: {
         filename: "vendor.js"
       },
@@ -80,8 +72,7 @@ gulp.task('webpack:vendor:dist', function() {
           { test: /\.js$/, exclude: /node_modules/, loader: 'babel-loader' }
         ]
       },
-      target: 'node-webkit',
-      cache: true,
+      target: 'web',
     }))
     .pipe(gulp.dest(BUILD_DIR + 'js/'))
 });
@@ -92,9 +83,6 @@ gulp.task('webpack:dev', function() {
   return gulp.src('src/js/entry/entry.js')
     .pipe(gulpWebpack({
       mode: 'development',
-      node: {
-        fs: 'empty'
-      },
       module: {
         rules: [
           { test: /\.jade$/, loader: "jade-loader" },
@@ -103,7 +91,7 @@ gulp.task('webpack:dev', function() {
       output: {
         filename: "app.js"
       },
-      target: 'node-webkit',
+      target: 'web',
       cache: true,
     }))
     .pipe(gulp.dest(TMP_DIR + 'js/'))
@@ -114,9 +102,6 @@ gulp.task('webpack:dist', function() {
   return gulp.src('src/js/entry/entry.js')
     .pipe(gulpWebpack({
       mode: 'production',
-      node: {
-        fs: 'empty'
-      },
       module: {
         rules: [
           { test: /\.jade$/, loader: "jade-loader" },
@@ -125,8 +110,7 @@ gulp.task('webpack:dist', function() {
       output: {
         filename: "app.js"
       },
-      target: 'node-webkit',
-      cache: true,
+      target: 'web',
       // TODO: Figure out how to make this work.
       // optimization: {
       //   minimizer: [new UglifyJsPlugin()]
@@ -149,21 +133,27 @@ gulp.task('less', function () {
     .pipe($.browserSync.reload({stream:true}));
 });
 
-// Extracts l10n strings from template files
-gulp.task('l10nExtract', function () {
-  return gulp.src('src/templates/**/*.jade')
-    .pipe($.jadeL10nExtractor({
-      filename: 'messages.pot'
-    }))
-    .pipe(gulp.dest('./l10n/templates'))
-});
-
 // Static server
 gulp.task('serve', function(done) {
   $.browserSync({
     open: false,
     server: {
       baseDir: [".", TMP_DIR, "./res", "./deps/js", ''],
+      middleware: [
+        modRewrite([
+          '!\\.html|\\.js|\\.css|\\.png|\\.jpg|\\.gif|\\.svg|\\.txt|\\.eot|\\.woff|\\.woff2|\\.ttf$ /index.html [L]'
+        ])
+      ]
+    }
+  });
+  done();
+});
+
+gulp.task('serve:dist', function(done) {
+  $.browserSync({
+    open: false,
+    server: {
+      baseDir: [BUILD_DIR],
       middleware: [
         modRewrite([
           '!\\.html|\\.js|\\.css|\\.png|\\.jpg|\\.gif|\\.svg|\\.txt|\\.eot|\\.woff|\\.woff2|\\.ttf$ /index.html [L]'
@@ -183,9 +173,6 @@ gulp.task('static', function() {
   var pkg = gulp.src(['src/package.json'])
     .pipe(gulp.dest(BUILD_DIR));
 
-  var icons = gulp.src(['icons/**/*'])
-    .pipe(gulp.dest(BUILD_DIR + 'icons/'));
-
   var res = gulp.src(['res/**/*'])
     .pipe(gulp.dest(BUILD_DIR));
 
@@ -196,7 +183,7 @@ gulp.task('static', function() {
   var images = gulp.src('img/**/*')
     .pipe(gulp.dest(BUILD_DIR + 'img/'));
 
-  return merge(pkg, icons, res, fonts, images);
+  return merge(pkg, res, fonts, images);
 });
 
 // Version branch
@@ -263,7 +250,6 @@ gulp.task('templates:dev', function () {
 gulp.task('templates:dist', function() {
   return gulp.src('src/templates/**/*.jade')
     .pipe($.jade({
-      jade: jadeL10n,
       languageFile: 'l10n/en/messages.po',
       pretty: true
     }))
@@ -275,7 +261,7 @@ gulp.task('default',
   gulp.series(
     gulp.parallel('clean:dev', 'less', 'templates:dev',  'gitVersion'),
     'webpack:dev',
-    'webpack:vendor:dev', 
+    'webpack:vendor:dev',
     'preprocess:dev',
     'serve',
     'nwlaunch'
@@ -304,12 +290,9 @@ gulp.task('default',
 });
 
 gulp.task('deps', function () {
-
   return gulp.src([BUILD_DIR + 'index.html'])
-    // Concatenates asset files from the build blocks inside the HTML
-    .pipe(useref())
     // Appends hash to extracted files app.css → app-098f6bcd.css
-    .pipe($.rev())
+    //.pipe($.rev())
     // Adds AngularJS dependency injection annotations
     // We don't need this, cuz the app doesn't go thru this anymore
     //.pipe($.if('*.js', $.ngAnnotate()))
@@ -318,7 +301,9 @@ gulp.task('deps', function () {
     // Minifies css files
     .pipe($.if('*.css', $.csso()))
     // Rewrites occurences of filenames which have been renamed by rev
-    .pipe($.revReplace())
+    //.pipe($.revReplace())
+    // Concatenates asset files from the build blocks inside the HTML
+    .pipe(useref())
     // Minifies html
     .pipe($.if('*.html', $.minifyHtml({
       empty: true,
@@ -385,13 +370,13 @@ gulp.task('zip', function() {
 });
 
 // Final product
-gulp.task('packages', gulp.series(
+gulp.task('prod', gulp.series(
     gulp.parallel('clean:dist', 'less', 'templates:dist', 'static', 'gitVersion'),
     'webpack:dist',
-    'webpack:vendor:dist', 
+    'webpack:vendor:dist',
     'preprocess:dist',
     'deps',
-    'build',
-    'zip'
+    'serve:dist',
+    'nwlaunch'
   ), function(done) { done(); }
 );

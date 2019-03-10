@@ -1,22 +1,9 @@
 doctype
 
-<!--[if lt IE 7]>
-html.no-js.lt-ie9.lt-ie8.lt-ie7(ng-app='rp', ng-controller='AppCtrl', ng-class='[$route.current.tabClass, $route.current.pageMode]', lang='en')
-<![endif]-->
-<!--[if IE 7]>
-html.no-js.lt-ie9.lt-ie8(ng-app='rp', ng-controller='AppCtrl', ng-class='[$route.current.tabClass, $route.current.pageMode]', lang='en')
-<![endif]-->
-<!--[if IE *]>
-html.no-js.lt-ie9(ng-app='rp', ng-controller='AppCtrl', ng-class='[$route.current.tabClass, $route.current.pageMode]', lang='en')
-<![endif]-->
-<!--[if gt IE 8]><!-->
-html.no-js(ng-app='rp', ng-controller='AppCtrl', ng-class='[$route.current.tabClass, $route.current.pageMode]', lang='en')
-<!--<![endif]-->
-
-html(ng-app='rp', ng-controller='AppCtrl', ng-class='[$route.current.tabClass, $route.current.pageMode]')
+html
   head
     meta(charset='utf-8')
-    title Ripple Admin Console
+    title XRPL Orderbook
     link(rel='apple-touch-icon', href='img/mobile/icon60.png')
     link(rel='apple-touch-icon', sizes='76x76', href='img/mobile/icon76.png')
     link(rel='apple-touch-icon', sizes='120x120', href='img/mobile/icon120.png')
@@ -24,6 +11,7 @@ html(ng-app='rp', ng-controller='AppCtrl', ng-class='[$route.current.tabClass, $
     link(rel='icon', sizes='196x196', href='img/mobile/icon196.png')
     link(rel='icon', sizes='128x128', href='img/mobile/icon128.png')
     meta(name='viewport', content='width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no')
+    meta(name='monetization', content='$twitter.xrptipbot.com/r0bertz')
 
     // build:css css/vendor.css
     link(href='../node_modules/font-awesome/css/font-awesome.min.css', rel='stylesheet')
@@ -39,11 +27,26 @@ html(ng-app='rp', ng-controller='AppCtrl', ng-class='[$route.current.tabClass, $
     link(rel='icon', href='img/favicon.ico', type='image/x-icon')
     // END FAVICON
 
+    include ../../analytics.html
+
     // build:js js/head.js
     script(src='../deps/modernizr.js')
     // endbuild
 
-  body(ng-class="{loaded: !pageLoading}")
+    // JAVASCRIPT
+    script(src='js/vendor.js')
+
+    // build:js js/config.js
+    script(src='../config.js')
+    // endbuild
+
+    script(src='js/app.js')
+
+    // loading state
+    script.
+      setTimeout(function(){ $("body").addClass("loading");}, 100);
+
+  body(ng-app='rp', ng-strict-di, ng-controller='AppCtrl', ng-class="{loaded: !pageLoading}")
     //- TODO make this work div(ng-include="'templates/' + lang + '/client/layout.html'")
     div(ng-include="'templates/en/client/layout.html'")
 
@@ -57,35 +60,3 @@ html(ng-app='rp', ng-controller='AppCtrl', ng-class='[$route.current.tabClass, $
         | Please refer to this page and download a browser that supports WebSockets. Thank you!
         br
         a(href='http://caniuse.com/websockets') http://caniuse.com/websockets
-
-    // JAVASCRIPT
-    script(src='js/vendor.js')
-
-    // build:js js/deps.js
-    script(src='../deps/bootstrap-datepicker.js')
-    // endbuild
-
-    // build:js config.js
-    script(src='../config.js')
-    // endbuild
-
-    script.
-      window.name = 'NG_DEFER_BOOTSTRAP!';
-
-    <!-- @if MODE == 'dev' -->
-    script(type='text/javascript').
-      $.getScript('js/app.js');
-    <!-- @endif -->
-
-    <!-- @if MODE == 'dist' -->
-    script(type='text/javascript').
-      $.ajaxSetup({
-        cache: true
-      });
-      var version = '<!-- @echo VERSION -->';
-      $.getScript('js/app.js?v=' + version);
-    <!-- @endif -->
-
-    // loading state
-    script.
-      setTimeout(function(){ $("body").addClass("loading");}, 100);

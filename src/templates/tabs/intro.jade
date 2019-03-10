@@ -1,0 +1,47 @@
+section.col-xs-12.content(ng-controller='IntroCtrl')
+
+  h2 FAQ
+
+  h3 What is this?
+
+  p
+    | This website is actually a stripped down version of the trade tab in
+    | <a href="https://github.com/r0bertz/ripple-client-desktop">ripple-client-desktop</a>.
+    | I deleted everything except the chart and the orderbook.
+
+  h3 How do I use this?
+
+  p(ng-hide='connected') Please wait. Connecting to {{Options.connection.server}}.
+  form(name='show-orderbook', ng-show='connected', ng-submit='showOrderbook()')
+    .div
+      label Currency pair
+      input(type='text', size=64, ng-model='pair')
+    .div
+      input(type='checkbox', ng-change='clickShowAccount(showAccount)', ng-model='showAccount')
+      span Highlight offer for account
+      input(type='text', size=50, ng-show='showAccount', ng-model='account')
+    .div
+      button(type='submit') Open Orderbook
+
+  h3 Why do you create this?
+
+  ul
+    li
+      | <a href="https://xrpcharts.ripple.com">xrpcharts.ripple.com</a>
+      | don't highlight offers placed by a particular account and the prices
+      | only have 2 decimal paces.
+    li
+      | ripple-desktop-client does a better job however it requires logging in.
+
+  h3 Who are you?
+
+  p
+    | You may have heard of me as <b>r0bertz</b> on
+    | <a href="https://twitter.com/r0bertz">twitter</a> and
+    | <a href="https://www.xrpchat.com/profile/97-r0bertz">xrpchat.com</a>.
+
+  h3 How can I help?
+
+  p
+    | Open a <a href="https://coil.com">coil</a> account and use this website.
+    | Or tip me on twitter if you really want to. Thank you!

@@ -1,35 +1,12 @@
-var types = require('../util/types');
-
 // Dependencies
 require("setimmediate");
 
 // Load app modules
 require('../controllers/app');
-require('../controllers/navbar');
-require('../directives/charts');
-require('../directives/fields');
-require('../directives/effects');
-require('../directives/validators');
-require('../directives/events');
 require('../directives/formatters');
-require('../directives/directives');
-require('../directives/datalinks');
-require('../directives/errors');
-require('../directives/qr');
-require('../directives/signedTransaction');
 require('../filters/filters');
-require('../services/globalwrappers');
-require('../services/id');
-require('../services/blob');
-require('../services/authflow');
-require('../services/keychain');
 require('../services/network');
-//require('../services/api');
 require('../services/books');
-require('../services/popup');
-require('../services/nwhelpers');
-require('../services/filedialog');
-require('../services/pairsqueryutils');
 
 // Angular module dependencies
 var appDependencies = [
@@ -37,65 +14,21 @@ var appDependencies = [
   'ngRoute',
   // Controllers
   'app',
-  'navbar',
-  // Services
-  'id',
-  'filedialog',
-  'nwhelpers',
-  'pairsqueryutils',
   // Directives
-  'charts',
-  'effects',
-  'events',
-  'fields',
   'formatters',
-  'directives',
-  'validators',
-  'datalinks',
-  'errors',
   // Filters
   'filters',
   'ui.bootstrap',
-  'as.sortable'
 ];
 
 // Load tabs
 var tabdefs = [
-  require('../tabs/register'),
-  require('../tabs/login'),
-  require('../tabs/balance'),
-  require('../tabs/history'),
-  require('../tabs/contacts'),
-  require('../tabs/exchange'),
-  require('../tabs/trust'),
-  require('../tabs/send'),
-  require('../tabs/trade'),
-  require('../tabs/advanced'),
-  require('../tabs/security'),
-  require('../tabs/tx'),
-  require('../tabs/eula'),
-  require('../tabs/accountflags'),
-  require('../tabs/settingstrade'),
-  require('../tabs/coldwallet'),
-  require('../tabs/tou')
+  require('../tabs/intro'),
+  require('../tabs/orderbook')
 ];
 
 // Language
 window.lang = (function(){
-  /*var languages = _.pluck(require('../../../l10n/languages.json').active, 'code');
-  var resolveLanguage = function(lang) {
-    if (!lang) return null;
-    if (languages.indexOf(lang) != -1) return lang;
-    if (lang.indexOf("_") != -1) {
-      lang = lang.split("_")[0];
-      if (languages.indexOf(lang) != -1) return lang;
-    }
-    return null;
-  };
-  return resolveLanguage(store.get('ripple_language')) ||
-    resolveLanguage(window.navigator.userLanguage || window.navigator.language) ||
-    'en';*/
-
   return 'en'
 })();
 
@@ -114,24 +47,14 @@ var tabs = tabdefs.map(function (Tab) {
 
 var app = angular.module('rp', appDependencies);
 
-// Global reference for debugging only (!)
-var rippleclient = window.rippleclient = {};
-rippleclient.app = app;
-rippleclient.types = types;
-// for unit tests
-//rippleclient.rewriter = rewriter;
-
-// for unit tests
-rippleclient.tabs = {};
-_.forEach(tabs, function(tab) { rippleclient.tabs[tab.tabName] = tab; });
-
-app.config(function ($routeProvider, $locationProvider) {
+app.config(['$routeProvider', '$locationProvider',
+  function ($routeProvider, $locationProvider) {
   // Since AngularJS 1.6, the default hash-prefix used for $location hash-bang
   // URLs has changed from the empty string ('') to the bang ('!'). To make old
   // url (e.g. 'href="#/history') work, set hash prefix to empty string.
   $locationProvider.hashPrefix('');
 
-  // Set up routing for tabs
+    // Set up routing for tabs
   _.forEach(tabs, function (tab) {
     var config = {
       tabName: tab.tabName,
@@ -141,10 +64,9 @@ app.config(function ($routeProvider, $locationProvider) {
       templateUrl: 'templates/' + lang + '/tabs/' + tab.tabName + '.html'
     };
 
-    if ('balance' === tab.tabName) {
+    if ('intro' === tab.tabName) {
       $routeProvider.when('/', config);
     }
-
     $routeProvider.when('/' + tab.tabName, config);
 
     if (tab.extraRoutes) {
@@ -153,45 +75,16 @@ app.config(function ($routeProvider, $locationProvider) {
         $routeProvider.when(route.name, config);
       });
     }
-
-    _.forEach(tab.aliases, function (alias) {
-      $routeProvider.when('/' + alias, config);
-    });
   });
 
-  // Language switcher
-  $routeProvider.when('/lang/:language', {
-    redirectTo: function(routeParams, path, search){
-      lang = routeParams.language;
+  $routeProvider.otherwise({redirectTo: '/'});
+}]);
 
-      if (!store.disabled) {
-        store.set('ripple_language', lang ? lang : '');
-      }
-
-      // problem?
-      // reload will not work, as some pages are also available for guests.
-      // Logout will show the same page instead of showing login page.
-      // This line redirects user to root (login) page
-      var port = location.port.length > 0 ? ":" + location.port : "";
-      location.href = location.protocol + '//' + location.hostname  + port + location.pathname;
-    }
-  });
-
-  $routeProvider.otherwise({redirectTo: '/404'});
-});
-
-app.run(['$rootScope', '$route', '$routeParams', 'rpNW',
-  function ($rootScope, $route, $routeParams, rpNW)
+app.run(['$rootScope', '$route', '$routeParams',
+  function ($rootScope, $route, $routeParams)
   {
     // This is the desktop client
     $rootScope.productName = 'Ripple Admin Console';
-
-    // Global reference for debugging only (!)
-    if ("object" === typeof rippleclient) {
-      rippleclient.$scope = $rootScope;
-      rippleclient.version = $rootScope.version =
-        angular.element('#version').text();
-    }
 
     // Helper for detecting empty object enumerations
     $rootScope.isEmpty = function (obj) {
@@ -227,38 +120,5 @@ app.run(['$rootScope', '$route', '$routeParams', 'rpNW',
         }
       });
     });
-
-    rpNW.initCtxMenu();
-    rpNW.initTray();
-  }]);
-
-if ("function" === typeof angular.resumeBootstrap) {
-  angular.resumeBootstrap();
-
-  angular.resumeBootstrap = function() {
-    return false;
-  };
-}
-
-/**
- * NW.js stuff
- */
-
-var gui = window.require('nw.gui');
-var win = gui.Window.get();
-win.showDevTools();
-
-// Edit menu
-if (process.platform === "darwin") {
-  var mb = new gui.Menu({type: 'menubar'});
-  mb.createMacBuiltin('Ripple Admin Console', {
-    hideEdit: false
-  });
-  gui.Window.get().menu = mb;
-}
-
-// To open external links in the real browser
-win.on('new-win-policy', function(frame, url, policy) {
-  gui.Shell.openExternal(url);
-  policy.ignore();
-});
+  }
+]);
