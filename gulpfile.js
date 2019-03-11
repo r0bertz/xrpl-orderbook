@@ -71,11 +71,13 @@ gulp.task('webpack:vendor:dist', function() {
         minimizer: [new TerserPlugin({
           cache: true,
           parallel: true,
-          extractComments: 'all',
           terserOptions: {
             parse: {},
             compress: {},
             mangle: true,
+            output: {
+              comments: false,
+            }
           },
         })],
       },
@@ -128,11 +130,13 @@ gulp.task('webpack:dist', function() {
         minimizer: [new TerserPlugin({
           cache: true,
           parallel: true,
-          extractComments: 'all',
           terserOptions: {
             parse: {},
             compress: {},
             mangle: true,
+            output: {
+              comments: false,
+            }
           },
         })],
       },
