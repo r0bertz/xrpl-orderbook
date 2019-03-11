@@ -70,7 +70,7 @@ app.config(['$routeProvider', '$locationProvider',
 
     if (tab.extraRoutes) {
       _.forEach(tab.extraRoutes, function(route) {
-        $.extend({}, config, route.config);
+        _.extend({}, config, route.config);
         $routeProvider.when(route.name, config);
       });
     }
@@ -94,7 +94,6 @@ app.run(['$rootScope', '$route', '$routeParams',
     $rootScope.$route = $route;
     $rootScope.$routeParams = $routeParams;
     $rootScope.lang = lang;
-    $('#main').data('$scope', scope);
 
     // put Options to rootScope so it can be used in html templates
     $rootScope.globalOptions = Options;
@@ -106,18 +105,6 @@ app.run(['$rootScope', '$route', '$routeParams',
 
     $rootScope.$on('$routeChangeSuccess', function() {
       $rootScope.pageLoading = false;
-    });
-
-    // Once the app controller has been instantiated
-    // XXX ST: I think this should be an event instead of a watch
-    scope.$watch("app_loaded", function on_app_loaded(oldval, newval) {
-      $('nav a').click(function() {
-        if (location.hash == this.hash) {
-          scope.$apply(function () {
-            $route.reload();
-          });
-        }
-      });
     });
   }
 ]);

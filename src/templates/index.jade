@@ -42,10 +42,6 @@ html
 
     script(src='js/app.js')
 
-    // loading state
-    script.
-      setTimeout(function(){ $("body").addClass("loading");}, 100);
-
   body(ng-app='rp', ng-strict-di, ng-controller='AppCtrl', ng-class="{loaded: !pageLoading}")
     //- TODO make this work div(ng-include="'templates/' + lang + '/client/layout.html'")
     div(ng-include="'templates/en/client/layout.html'")

@@ -1,6 +1,5 @@
 'use strict';
 
-window.jQuery = window.$ = require('jquery');
 window.RippleAPI = require('ripple-lib').RippleAPI;
 window.OrderBook = require('ripple-lib-orderbook').OrderBook;
 window.IOUValue = require('ripple-lib-value').IOUValue;
