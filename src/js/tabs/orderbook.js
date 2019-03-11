@@ -169,7 +169,7 @@ OrderbookTab.prototype.angular = function(module)
                 order.showSum = rpamountFilter(order.sum,OrderbookFilterOpts);
                 order.showPrice = rpamountFilter(order.price,OrderbookFilterOpts);
 
-                var showValue = type === 'bids' ? 'TakerPays' : 'TakerGets';
+                var showValue = type === 'bids' ? 'TakerPaysFunded' : 'TakerGetsFunded';
                 order['show' + showValue] = rpamountFilter(order[showValue],OrderbookFilterOpts);
               });
             }
