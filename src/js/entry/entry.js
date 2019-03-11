@@ -18,7 +18,6 @@ var appDependencies = [
   'formatters',
   // Filters
   'filters',
-  'ui.bootstrap',
 ];
 
 // Load tabs

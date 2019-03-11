@@ -11,6 +11,3 @@ window._ = require('lodash');
 
 require('angular');
 require('angular-route');
-require('angular-messages');
-require('angular-ui-bootstrap');
-require('bootstrap');
