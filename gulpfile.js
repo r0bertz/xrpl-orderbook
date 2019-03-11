@@ -286,7 +286,6 @@ gulp.task('default',
     'webpack:vendor:dev',
     'preprocess:dev',
     'serve',
-    'nwlaunch'
   ),
  function(done) {
   // Webpack
@@ -399,6 +398,5 @@ gulp.task('prod', gulp.series(
     'preprocess:dist',
     'deps',
     'serve:dist',
-    'nwlaunch'
   ), function(done) { done(); }
 );
