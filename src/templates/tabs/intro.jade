@@ -22,16 +22,20 @@ section.col-xs-12.content(ng-controller='IntroCtrl')
       input(type='text', size=50, ng-show='showAccount', ng-model='account')
     .div
       button(type='submit') Open Orderbook
+  br
 
-  h3 Why do you create this?
+  h3 Why do you do this?
 
   ul
     li
-      | <a href="https://xrpcharts.ripple.com">xrpcharts.ripple.com</a>
-      | don't highlight offers placed by a particular account and the prices
-      | only have 2 decimal paces.
+      | <a href="https://xrpcharts.ripple.com">xrpcharts.ripple.com</a> always
+      | merges orders at about the same price, lacks the ability to highlight
+      | offers placed by a particular account and the prices only have 2 decimal
+      | places.
     li
-      | ripple-desktop-client does a better job however it requires logging in.
+      | ripple-desktop-client can highlight offers. Those highlighted offers
+      | are not merged with other offers. The prices have 5 decimal places.
+      | However you need to log in even for read only operations.
 
   h3 Who are you?
 
