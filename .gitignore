@@ -11,3 +11,4 @@ test/e2e/protractor.conf.js
 res/nw/config.js
 .gulp_tasks
 analytics.html
+web-monetization.html
