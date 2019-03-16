@@ -7,19 +7,27 @@ section.col-xs-12.content(ng-controller='IntroCtrl')
   p
     | This website is actually a stripped down version of the trade tab in
     | <a href="https://github.com/r0bertz/ripple-client-desktop">ripple-client-desktop</a>.
-    | I deleted everything except the chart and the orderbook.
+    | Only the chart and the orderbook remain, all else are removed.
+  p
+    | The source code is <a href="https://github.com/r0bertz/xrpl-orderbook">here</a>.
 
   h3 How do I use this?
 
   p(ng-hide='connected') Please wait. Connecting to {{Options.connection.server}}.
+
+  p
+    | Paste a <a href="https://xrpcharts.ripple.com">xrpcharts.ripple.com</a>
+    | link below, optionally enter an account to highlight offer for, click
+    | "Open Orderbook".
+
   form(name='show-orderbook', ng-show='connected', ng-submit='showOrderbook()')
     .div
-      label Currency pair
-      input(type='text', size=64, ng-model='pair')
+      label Link
+      input(type='text', size=100, ng-model='link')
     .div
-      input(type='checkbox', ng-change='clickShowAccount(showAccount)', ng-model='showAccount')
+      input(type='checkbox', ng-change='clickHighlightAccount(highlightAccount)', ng-model='highlightAccount')
       span Highlight offer for account
-      input(type='text', size=50, ng-show='showAccount', ng-model='account')
+      input(type='text', size=50, ng-show='highlightAccount', ng-model='account')
     .div
       button(type='submit') Open Orderbook
   br
@@ -28,14 +36,18 @@ section.col-xs-12.content(ng-controller='IntroCtrl')
 
   ul
     li
+      | I started using scripts to place offers and manage offers so I need a
+      | good tool to visualize the orderbook.
+    li
       | <a href="https://xrpcharts.ripple.com">xrpcharts.ripple.com</a> always
       | merges orders at about the same price, lacks the ability to highlight
       | offers placed by a particular account and the prices only have 2 decimal
       | places.
     li
-      | ripple-desktop-client can highlight offers. Those highlighted offers
+      | <a href="https://github.com/r0bertz/ripple-client-desktop">
+      | ripple-client-desktop</a> can highlight offers. Highlighted offers
       | are not merged with other offers. The prices have 5 decimal places.
-      | However you need to log in even for read only operations.
+      | However it requires logging in.
 
   h3 Who are you?
 
@@ -43,9 +55,15 @@ section.col-xs-12.content(ng-controller='IntroCtrl')
     | You may have heard of me as <b>r0bertz</b> on
     | <a href="https://twitter.com/r0bertz">twitter</a> and
     | <a href="https://www.xrpchat.com/profile/97-r0bertz">xrpchat.com</a>.
+  p
+    | Also you may be interested in my blog at <a href="https://xrp.ninja">
+    | xrp.ninja</a>. I am also running a
+    | <a href="https://xrpcharts.ripple.com/#/validators/nHBTqw7vwjqrSMruoQNYmSXcrBmQHDquG7jgvrsQpurGaVELqdNx">
+    | rippled validator</a>.
 
   h3 How can I help?
 
   p
     | Open a <a href="https://coil.com">coil</a> account and use this website.
-    | Or tip me on twitter if you really want to. Thank you!
+    | Or <a href="https://www.xrptipbot.com/u:r0bertz/n:twitter">tip</a> me on
+    | twitter if you really want to. Thank you!
