@@ -6,8 +6,6 @@
  * better to use a directive.
  */
 
-var webutil = require('../util/web');
-
 var module = angular.module('formatters', []);
 
 module.directive('rpPrettyIssuer', function () {
@@ -15,7 +13,6 @@ module.directive('rpPrettyIssuer', function () {
     restrict: 'EA',
     scope: {
       issuer: '=rpPrettyIssuer',
-      contacts: '=rpPrettyIssuerContacts'
     },
     template: '{{alias || name || issuer}}',
     compile: function (element, attr, linker) {
@@ -29,17 +26,12 @@ module.directive('rpPrettyIssuer', function () {
           scope.alias = null;
           scope.name = null;
 
-          if (scope.contacts) {
-            scope.name = webutil.isContact(scope.contacts, scope.issuer);
-          }
-
           if (!scope.name && attr.rpPrettyIssuerOrShort) {
             scope.name = "" + scope.issuer.substring(0,7) + "…";
           }
         }
 
         scope.$watch('issuer', update);
-        scope.$watch('contacts', update, true);
         update();
       };
     }

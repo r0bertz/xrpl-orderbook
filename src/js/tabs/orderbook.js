@@ -108,8 +108,8 @@ OrderbookTab.prototype.angular = function(module)
         }
 
         // Invalid issuers or XRP/XRP pair
-        if ((!first_currency.is_native() && !RippleAddressCodec.isValidAddress(order.first_issuer)) ||
-            (!second_currency.is_native() && !RippleAddressCodec.isValidAddress(order.second_issuer)) ||
+        if ((!first_currency.is_native() && !$network.apiOrderbook.isValidAddress(order.first_issuer)) ||
+            (!second_currency.is_native() && !$network.apiOrderbook.isValidAddress(order.second_issuer)) ||
             (first_currency.is_native() && second_currency.is_native())) {
           order.valid_settings = false;
           return;
@@ -189,7 +189,7 @@ OrderbookTab.prototype.angular = function(module)
           routeCurrencies[prefix] = $routeParams[prefix].match(/^(\w{3})/);
 
           if (routeIssuers[prefix]) {
-            if (RippleAddressCodec.isValidAddress(routeIssuers[prefix][1])) {
+            if ($network.apiOrderbook.isValidAddress(routeIssuers[prefix][1])) {
               $scope.order[prefix + '_issuer'] = routeIssuers[prefix][1];
             } else {
               $location.path('/orderbook');
