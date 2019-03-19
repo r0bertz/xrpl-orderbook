@@ -311,20 +311,20 @@ gulp.task('default',
 });
 
 gulp.task('deps', function () {
+  var indexHtmlFilter = $.filter(
+    [BUILD_DIR + 'js/*', BUILD_DIR + 'css/*'], { restore: true });
+
   return gulp.src([BUILD_DIR + 'index.html'])
-    // Appends hash to extracted files app.css → app-098f6bcd.css
-    //.pipe($.rev())
-    // Adds AngularJS dependency injection annotations
-    // We don't need this, cuz the app doesn't go thru this anymore
-    //.pipe($.if('*.js', $.ngAnnotate()))
-    // Uglifies js files
-    .pipe($.if('*.js', $.uglify()))
-    // Minifies css files
-    .pipe($.if('*.css', $.csso()))
-    // Rewrites occurences of filenames which have been renamed by rev
-    //.pipe($.revReplace())
     // Concatenates asset files from the build blocks inside the HTML
     .pipe(useref())
+    .pipe(indexHtmlFilter)
+    // Appends hash to extracted files app.css → app-098f6bcd.css
+    .pipe($.rev())
+    // Minifies css files
+    .pipe($.if('*.css', $.csso()))
+    .pipe(indexHtmlFilter.restore)
+    // Rewrites occurences of filenames which have been renamed by rev
+    .pipe($.revReplace())
     // Minifies html
     .pipe($.if('*.html', $.minifyHtml({
       empty: true,

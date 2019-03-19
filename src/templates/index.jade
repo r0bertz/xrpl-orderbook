@@ -34,14 +34,17 @@ html
     script(src='../deps/modernizr.js')
     // endbuild
 
-    // JAVASCRIPT
+    // build:js js/vender.js
     script(src='js/vendor.js')
+    // endbuild
 
     // build:js js/config.js
     script(src='../config.js')
     // endbuild
 
+    // build:js js/app.js
     script(src='js/app.js')
+    // endbuild
 
   body(ng-app='rp', ng-strict-di, ng-controller='AppCtrl', ng-class="{loaded: !pageLoading}")
     //- TODO make this work div(ng-include="'templates/' + lang + '/client/layout.html'")
