@@ -19,9 +19,43 @@ IntroTab.prototype.generateHtml = function ()
 
 IntroTab.prototype.angular = function(module)
 {
-  module.controller('IntroCtrl', ['$scope', '$rootScope', '$window',
-    function($scope, $rootScope, $window) {
+  module.controller('IntroCtrl', ['$scope', '$rootScope', '$window', '$sce',
+    function($scope, $rootScope, $window, $sce) {
       $scope.Options = $rootScope.globalOptions;
+      $scope.markets = [];
+      pairs = [
+        'XRP/CNY:rKiCet8SdvWxPXnAgYarFUXMh1zCPz432Y',
+        'XRP/USD:rhub8VRN55s94qWKDv6jmDy1pUykJzF3wq',
+      ];
+      issuerNames = new Map([
+        ['rKiCet8SdvWxPXnAgYarFUXMh1zCPz432Y', 'Ripple Fox'],
+        ['rhub8VRN55s94qWKDv6jmDy1pUykJzF3wq', 'GateHub'],
+      ]);
+      pairs.forEach(function(p) {
+        pair = [];
+        p.split('/').forEach(function(c) {
+          obj = {
+            currency: c.match(/^(\w{3})/)[1],
+          }
+          im = c.match(/:(.+)$/);
+          if (im !== null) {
+            obj.issuer = im[1]
+          }
+          pair.push(obj);
+        });
+        base = JSON.stringify(pair[0]);
+        counter = JSON.stringify(pair[1]);
+        Url = "https://xrpcharts.ripple.com/embed/pricechart?theme=light&type=candlestick&counter=" + counter + "=&base=" + base + "&live=true";
+        market = "<div class='title'>"
+        market += pair[0].hasOwnProperty('issuer') ? issuerNames.get(pair[0].issuer) + " " : ""
+        market += pair[0].currency + "/" + pair[1].currency
+        market += pair[1].hasOwnProperty('issuer') ? " " + issuerNames.get(pair[1].issuer) : ""
+        market += "</div>"
+        market += "<iframe src='" + Url + "'></iframe>"
+        market += "<a href='/#/orderbook/" + p + "'></a>"
+        console.log(market);
+        $scope.markets.push($sce.trustAsHtml(market));
+      })
       $scope.link = 'https://xrpcharts.ripple.com/#/markets/XRP/CNY:rKiCet8SdvWxPXnAgYarFUXMh1zCPz432Y?interval=5m&range=1d&type=candlestick'
       $scope.account = 'rJMWjmyAuJxG96SwU9iASCPz9GrpTivtzB';
       $scope.highlightAccount = true;

@@ -1,5 +1,8 @@
 section.col-xs-12.content(ng-controller='IntroCtrl')
 
+  div(id="topMarkets")
+    div(ng-repeat="m in markets" ng-bind-html="m" class="market")
+
   h2 FAQ
 
   h3 What is this?
@@ -16,7 +19,8 @@ section.col-xs-12.content(ng-controller='IntroCtrl')
   p(ng-hide='connected') Please wait. Connecting to {{Options.connection.server}}.
 
   p
-    | Paste a <a href="https://xrpcharts.ripple.com">xrpcharts.ripple.com</a>
+    | Click on a currency pair above to open its orderbook. Otherwise, paste
+    | a <a href="https://xrpcharts.ripple.com">xrpcharts.ripple.com</a>
     | link below, optionally enter an account to highlight offer for, click
     | "Open Orderbook".
 
