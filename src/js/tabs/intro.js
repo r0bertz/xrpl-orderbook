@@ -45,7 +45,7 @@ IntroTab.prototype.angular = function(module)
         });
         base = JSON.stringify(pair[0]);
         counter = JSON.stringify(pair[1]);
-        Url = "https://xrpcharts.ripple.com/embed/pricechart?theme=light&type=candlestick&counter=" + counter + "=&base=" + base + "&live=true";
+        Url = "https://xrpcharts.ripple.com/embed/pricechart/?theme=light&type=candlestick&counter=" + counter + "=&base=" + base + "&live=true";
         market = "<div class='title'>"
         market += pair[0].hasOwnProperty('issuer') ? issuerNames.get(pair[0].issuer) + " " : ""
         market += pair[0].currency + "/" + pair[1].currency
@@ -53,7 +53,6 @@ IntroTab.prototype.angular = function(module)
         market += "</div>"
         market += "<iframe src='" + Url + "'></iframe>"
         market += "<a href='/#/orderbook/" + p + "'></a>"
-        console.log(market);
         $scope.markets.push($sce.trustAsHtml(market));
       })
       $scope.link = 'https://xrpcharts.ripple.com/#/markets/XRP/CNY:rKiCet8SdvWxPXnAgYarFUXMh1zCPz432Y?interval=5m&range=1d&type=candlestick'

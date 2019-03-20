@@ -70,7 +70,7 @@ OrderbookTab.prototype.angular = function(module)
         $scope.orderbookChartJsonBase = JSON.stringify(base);
         $scope.orderbookChartJsonCounter = JSON.stringify(counter);
 
-        var rawUrl = "https://xrpcharts.ripple.com/embed/pricechart?theme=light&type=candlestick&counter=" + $scope.orderbookChartJsonCounter + "=&base=" + $scope.orderbookChartJsonBase + "&live=true";
+        var rawUrl = "https://xrpcharts.ripple.com/embed/pricechart/?theme=light&type=candlestick&counter=" + $scope.orderbookChartJsonCounter + "=&base=" + $scope.orderbookChartJsonBase + "&live=true";
         $scope.orderbookEmbeddedHTML = $sce.trustAsHtml(
           "<iframe src='" + rawUrl + "' height='300' width='100%' " +
           "frameborder='0' />");
